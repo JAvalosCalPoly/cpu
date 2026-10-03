@@ -1,3 +1,6 @@
+`timescale 1ns / 1ps
+// the 32 registers
+
 module reg32 (
     input  wire        clk,
     input  wire        we,          // write enable

@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-// register file
+// single register file
 
 module regfile (
     input  wire        clk,
