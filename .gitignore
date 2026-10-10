@@ -1,2 +1,12 @@
 *.vcd
 *.vvp
+/riscv-tests
+/testbenches/*.vvp
+/testbenches/*.vcd
+build/*
+/build
+/testing
+run_tests.sh
+*.o
+*.bin
+*.elf
