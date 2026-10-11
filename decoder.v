@@ -134,12 +134,11 @@ always@(*) begin
             jalr = 1'b1;
         end
         // MISC-MEM (fence) and SYSTEM (ecall, ebreak):
-        //   do nothing for now; defaults already cover this
         MISC_MEM: begin
         end
         SYSTEM: begin
         end
-        // default: unknown opcode, defaults apply (no effect)
+        // default: unknown opcode
         default: begin
         end
     endcase
