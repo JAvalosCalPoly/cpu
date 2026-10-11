@@ -17,7 +17,7 @@ localparam DEPTH = 1 << ADDR_BITS;  // 4096
 reg [31:0] mem [0:DEPTH-1];
 wire [ADDR_BITS-1:0] data_index = mem_addr[ADDR_BITS+1:2];
 wire [31:0] word    = mem[data_index];
-wire [31:0] shifted = word >> {mem_addr[1:0], 3'b000};// wanted half moved to the bottom
+wire [31:0] shifted = word >> {mem_addr[1:0], 3'b000};   // wanted byte/half moved to the bottom
 
 initial begin
     $readmemh(INIT_FILE, mem);

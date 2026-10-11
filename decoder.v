@@ -12,12 +12,7 @@ module decoder (
     output reg  [1:0]  wb_sel, // 00 ALU, 01 memory, 10 PC+4, 11 multiplier/divider
     output reg         branch, // branch
     output reg         jal, // jump to PC + imm
-    output reg         jalr, // jump to rs1 + imm
-    output reg         csr_en, // CSR enable
-    output reg         illegal, // illegal instruction
-    output reg         ecall, // ecall
-    output reg         ebreak, // ebreak
-    output reg         mret // return from machine mode
+    output reg         jalr // jump to rs1 + imm
 );
 
 // opcodes (instr[6:0])
@@ -65,11 +60,6 @@ always@(*) begin
     branch = 1'b0;
     jal = 1'b0;
     jalr = 1'b0;
-    csr_en = 1'b0;
-    illegal = 1'b0;
-    ecall = 1'b0;
-    ebreak = 1'b0;
-    mret = 1'b0;
     case(opcode)
         // R-type
         OP: begin
@@ -143,30 +133,15 @@ always@(*) begin
             wb_sel = WB_PC4;
             jalr = 1'b1;
         end
+        // MISC-MEM (fence) and SYSTEM (ecall, ebreak):
+        //   do nothing for now; defaults already cover this
         MISC_MEM: begin
         end
         SYSTEM: begin
-            if (funct3 == 3'b100) begin
-                illegal = 1'b1;
-            end else if (funct3 != 3'b000) begin
-                reg_write = 1'b1;
-                csr_en = 1'b1;
-            end else begin
-                case (instr[31:20])
-                    12'h000: ecall = 1'b1;
-                    12'h001: ebreak = 1'b1;
-                    12'h302: mret = 1'b1;
-                    12'h105: ; // nop for now
-                    default: illegal = 1'b1;
-                endcase
-            end
         end
         // default: unknown opcode, defaults apply (no effect)
-        default: illegal = 1'b1;
+        default: begin
+        end
     endcase
-    if (illegal) begin
-        reg_write = 0; mem_read = 0; mem_write = 0;
-        branch = 0; jal = 0; jalr = 0; csr_en = 0;
-    end
 end
 endmodule
