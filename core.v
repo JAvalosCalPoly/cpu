@@ -87,7 +87,7 @@ module core#(parameter RESET_PC = 32'h00000000)(
     assign mem_wdata = rs2_data;
     assign mem_funct3 = funct3;
 
-    reg32 u_reg32 (
+    reg32 #(.WRITE_THROUGH(0)) u_reg32(
         .clk(clk),
         .we(reg_write),
         .reset(rst),

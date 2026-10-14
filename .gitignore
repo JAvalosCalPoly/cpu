@@ -6,3 +6,12 @@
 *.o
 *.bin
 *.elf
+/testbenches/outs
+/documentation/*.tex
+/documentation/*.aux
+/documentation/*.log
+/documentation/*.out
+/documentation/*.toc
+/documentation/*.fls
+/documentation/*.fdb_latexmk
+/documentation/*.synctex.gz

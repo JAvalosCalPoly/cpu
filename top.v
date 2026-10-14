@@ -4,7 +4,8 @@
 module top #(
     parameter RESET_PC  = 32'h0000_0000,
     parameter ADDR_BITS = 12,
-    parameter INIT_FILE = "program.hex"
+    parameter INIT_FILE = "testbenches/test_asm_hazards.hex",
+    parameter WRITE_THROUGH = 0
 )(
     input wire clk,
     input wire rst
