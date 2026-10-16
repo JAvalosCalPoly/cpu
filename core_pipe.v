@@ -223,7 +223,8 @@ assign ex_alu_a = (id_ex_alu_a_sel == 2'b01) ? id_ex_pc : (id_ex_alu_a_sel == 2'
 assign ex_alu_b = (id_ex_alu_b_sel == 1'b1) ? id_ex_imm : ex_rs2;
 //jump targets
 assign ex_branch_target = id_ex_pc + id_ex_imm;
-assign ex_jalr_target = {ex_alu_result[31:1], 1'b0}; // rs1 + imm, bit 0 cleared
+wire [31:0] ex_addr = ex_rs1 + id_ex_imm; // rs1 + imm, jalr & ld/st
+assign ex_jalr_target = {ex_addr[31:1], 1'b0}; // rs1 + imm, bit 0 cleared
 //pc_next back to IF
 // assign pc_next = (id_ex_jalr) ? ex_jalr_target :
 //                 (id_ex_jal) ? ex_branch_target :
@@ -297,7 +298,7 @@ end
 
 //MEM
 wire mem_is_mul = (ex_mem_wb_sel == 2'b11) && !ex_mem_funct3[2]; // mul in MEM
-assign mem_addr = ex_alu_result; // ex mem alu result gets this
+assign mem_addr = ex_addr; // ex mem alu result gets this
 assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
 assign mem_write = id_ex_mem_write;
 assign mem_read  = id_ex_mem_read;
