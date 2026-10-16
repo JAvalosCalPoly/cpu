@@ -33,7 +33,7 @@ reg [1:0] ex_mem_wb_sel;
 reg ex_mem_mem_read, ex_mem_mem_write, ex_mem_reg_write;
 
 //MEM/WB
-reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4;
+reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
 reg [4:0] mem_wb_rd;
 reg [1:0] mem_wb_wb_sel;
 reg mem_wb_reg_write;
@@ -297,16 +297,17 @@ end
 
 //MEM
 wire mem_is_mul = (ex_mem_wb_sel == 2'b11) && !ex_mem_funct3[2]; // mul in MEM
-assign mem_addr = ex_mem_alu_result; // address comes from alu result
-assign mem_wdata = ex_mem_rs2_data;  // data to write comes from rs2
-assign mem_write = ex_mem_mem_write;
-assign mem_read  = ex_mem_mem_read;
-assign mem_funct3 = ex_mem_funct3;
+assign mem_addr = ex_alu_result; // ex mem alu result gets this
+assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
+assign mem_write = id_ex_mem_write;
+assign mem_read  = id_ex_mem_read;
+assign mem_funct3 = id_ex_funct3;
 assign wb_data = (mem_wb_wb_sel == 2'b00) ? mem_wb_alu_result :
-                 (mem_wb_wb_sel == 2'b01) ? mem_rdata :
+                 (mem_wb_wb_sel == 2'b01) ? mem_wb_mem_rdata :
                  (mem_wb_wb_sel == 2'b10) ? mem_wb_pc_plus4 : mem_wb_multdiv_result;
 always @(posedge clk or posedge rst) begin
     if (rst) begin
+        mem_wb_mem_rdata      <= 0;
         mem_wb_alu_result    <= 0;
         mem_wb_multdiv_result <= 0;
         mem_wb_pc_plus4      <= 0;
@@ -314,6 +315,7 @@ always @(posedge clk or posedge rst) begin
         mem_wb_wb_sel        <= 0;
         mem_wb_reg_write     <= 0;
     end else begin
+        mem_wb_mem_rdata      <= mem_rdata;
         mem_wb_alu_result    <= ex_mem_alu_result;
         mem_wb_multdiv_result <= mem_is_mul ? mem_mul_result : ex_mem_multdiv_result;
         mem_wb_pc_plus4      <= ex_mem_pc_plus4;
