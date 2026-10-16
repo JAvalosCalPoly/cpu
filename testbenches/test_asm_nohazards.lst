@@ -1,0 +1,186 @@
+
+testbenches/test_asm_nohazards.o:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000413     	addi	x8, x0, 0x400
+       4: 60000493     	addi	x9, x0, 0x600
+       8: 00600913     	addi	x18, x0, 0x6
+       c: 00000613     	addi	x12, x0, 0x0
+      10: 00000013     	addi	x0, x0, 0x0
+
+00000014 <sum_loop>:
+      14: 0004a283     	lw	x5, 0x0(x9)
+      18: fff90913     	addi	x18, x18, -0x1
+      1c: 00448493     	addi	x9, x9, 0x4
+      20: 00000013     	addi	x0, x0, 0x0
+      24: 00560633     	add	x12, x12, x5
+      28: fe0916e3     	bne	x18, x0, 0x14 <sum_loop>
+      2c: 00000013     	addi	x0, x0, 0x0
+      30: 00000013     	addi	x0, x0, 0x0
+      34: 00c42023     	sw	x12, 0x0(x8)
+      38: 60000493     	addi	x9, x0, 0x600
+      3c: 00600913     	addi	x18, x0, 0x6
+      40: 800006b7     	lui	x13, 0x80000
+      44: 00000013     	addi	x0, x0, 0x0
+
+00000048 <max_loop>:
+      48: 0004a283     	lw	x5, 0x0(x9)
+      4c: fff90913     	addi	x18, x18, -0x1
+      50: 00448493     	addi	x9, x9, 0x4
+      54: 00000013     	addi	x0, x0, 0x0
+      58: 0056d863     	bge	x13, x5, 0x68 <max_skip>
+      5c: 00000013     	addi	x0, x0, 0x0
+      60: 00000013     	addi	x0, x0, 0x0
+      64: 005006b3     	add	x13, x0, x5
+
+00000068 <max_skip>:
+      68: fe0910e3     	bne	x18, x0, 0x48 <max_loop>
+      6c: 00000013     	addi	x0, x0, 0x0
+      70: 00000013     	addi	x0, x0, 0x0
+      74: 00d42223     	sw	x13, 0x4(x8)
+      78: 60000493     	addi	x9, x0, 0x600
+      7c: 80000737     	lui	x14, 0x80000
+      80: 00600913     	addi	x18, x0, 0x6
+      84: 00000013     	addi	x0, x0, 0x0
+      88: 00000013     	addi	x0, x0, 0x0
+      8c: fff70713     	addi	x14, x14, -0x1
+
+00000090 <min_loop>:
+      90: 0004a283     	lw	x5, 0x0(x9)
+      94: fff90913     	addi	x18, x18, -0x1
+      98: 00448493     	addi	x9, x9, 0x4
+      9c: 00000013     	addi	x0, x0, 0x0
+      a0: 00e2d863     	bge	x5, x14, 0xb0 <min_skip>
+      a4: 00000013     	addi	x0, x0, 0x0
+      a8: 00000013     	addi	x0, x0, 0x0
+      ac: 00500733     	add	x14, x0, x5
+
+000000b0 <min_skip>:
+      b0: fe0910e3     	bne	x18, x0, 0x90 <min_loop>
+      b4: 00000013     	addi	x0, x0, 0x0
+      b8: 00000013     	addi	x0, x0, 0x0
+      bc: 00e42423     	sw	x14, 0x8(x8)
+      c0: 60000493     	addi	x9, x0, 0x600
+      c4: 00000793     	addi	x15, x0, 0x0
+      c8: 00600913     	addi	x18, x0, 0x6
+      cc: 00000013     	addi	x0, x0, 0x0
+      d0: 00000013     	addi	x0, x0, 0x0
+
+000000d4 <neg_loop>:
+      d4: 0004a283     	lw	x5, 0x0(x9)
+      d8: fff90913     	addi	x18, x18, -0x1
+      dc: 00448493     	addi	x9, x9, 0x4
+      e0: 00000013     	addi	x0, x0, 0x0
+      e4: 0002d863     	bge	x5, x0, 0xf4 <neg_skip>
+      e8: 00000013     	addi	x0, x0, 0x0
+      ec: 00000013     	addi	x0, x0, 0x0
+      f0: 00178793     	addi	x15, x15, 0x1
+
+000000f4 <neg_skip>:
+      f4: fe0910e3     	bne	x18, x0, 0xd4 <neg_loop>
+      f8: 00000013     	addi	x0, x0, 0x0
+      fc: 00000013     	addi	x0, x0, 0x0
+     100: 00f42623     	sw	x15, 0xc(x8)
+     104: 60000493     	addi	x9, x0, 0x600
+     108: 00600913     	addi	x18, x0, 0x6
+     10c: 00000813     	addi	x16, x0, 0x0
+     110: 00000013     	addi	x0, x0, 0x0
+     114: 00000013     	addi	x0, x0, 0x0
+
+00000118 <umax_loop>:
+     118: 0004a283     	lw	x5, 0x0(x9)
+     11c: fff90913     	addi	x18, x18, -0x1
+     120: 00448493     	addi	x9, x9, 0x4
+     124: 00000013     	addi	x0, x0, 0x0
+     128: 00587863     	bgeu	x16, x5, 0x138 <umax_skip>
+     12c: 00000013     	addi	x0, x0, 0x0
+     130: 00000013     	addi	x0, x0, 0x0
+     134: 00500833     	add	x16, x0, x5
+
+00000138 <umax_skip>:
+     138: fe0910e3     	bne	x18, x0, 0x118 <umax_loop>
+     13c: 00000013     	addi	x0, x0, 0x0
+     140: 00000013     	addi	x0, x0, 0x0
+     144: 01042823     	sw	x16, 0x10(x8)
+     148: 60000493     	addi	x9, x0, 0x600
+     14c: 00600913     	addi	x18, x0, 0x6
+     150: 00100893     	addi	x17, x0, 0x1
+     154: 00000013     	addi	x0, x0, 0x0
+     158: 00000013     	addi	x0, x0, 0x0
+
+0000015c <prod_loop>:
+     15c: 0004a283     	lw	x5, 0x0(x9)
+     160: fff90913     	addi	x18, x18, -0x1
+     164: 00448493     	addi	x9, x9, 0x4
+     168: 00000013     	addi	x0, x0, 0x0
+     16c: 00028863     	beq	x5, x0, 0x17c <prod_skip>
+     170: 00000013     	addi	x0, x0, 0x0
+     174: 00000013     	addi	x0, x0, 0x0
+     178: 025888b3     	<unknown>
+
+0000017c <prod_skip>:
+     17c: fe0910e3     	bne	x18, x0, 0x15c <prod_loop>
+     180: 00000013     	addi	x0, x0, 0x0
+     184: 00000013     	addi	x0, x0, 0x0
+     188: 01142a23     	sw	x17, 0x14(x8)
+     18c: 00600993     	addi	x19, x0, 0x6
+     190: 00000013     	addi	x0, x0, 0x0
+     194: 00000013     	addi	x0, x0, 0x0
+     198: 00000013     	addi	x0, x0, 0x0
+     19c: 03364a33     	<unknown>
+     1a0: 03366ab3     	<unknown>
+     1a4: 00000013     	addi	x0, x0, 0x0
+     1a8: 00000013     	addi	x0, x0, 0x0
+     1ac: 01442c23     	sw	x20, 0x18(x8)
+     1b0: 01542e23     	sw	x21, 0x1c(x8)
+     1b4: 03000513     	addi	x10, x0, 0x30
+     1b8: 01200593     	addi	x11, x0, 0x12
+     1bc: 00000013     	addi	x0, x0, 0x0
+     1c0: 00000013     	addi	x0, x0, 0x0
+     1c4: 040000ef     	jal	x1, 0x204 <gcd>
+     1c8: 00000013     	addi	x0, x0, 0x0
+     1cc: 00000013     	addi	x0, x0, 0x0
+     1d0: 02a42023     	sw	x10, 0x20(x8)
+     1d4: d0e003b7     	lui	x7, 0xd0e00
+     1d8: 00000013     	addi	x0, x0, 0x0
+     1dc: 00000013     	addi	x0, x0, 0x0
+     1e0: 00000013     	addi	x0, x0, 0x0
+     1e4: 00d38393     	addi	x7, x7, 0xd
+     1e8: 00000013     	addi	x0, x0, 0x0
+     1ec: 00000013     	addi	x0, x0, 0x0
+     1f0: 00000013     	addi	x0, x0, 0x0
+     1f4: 02742223     	sw	x7, 0x24(x8)
+
+000001f8 <end>:
+     1f8: 0000006f     	jal	x0, 0x1f8 <end>
+     1fc: 00000013     	addi	x0, x0, 0x0
+     200: 00000013     	addi	x0, x0, 0x0
+
+00000204 <gcd>:
+     204: 02058663     	beq	x11, x0, 0x230 <gcd_done>
+     208: 00000013     	addi	x0, x0, 0x0
+     20c: 00000013     	addi	x0, x0, 0x0
+     210: 02b562b3     	<unknown>
+     214: 00058513     	addi	x10, x11, 0x0
+     218: 00000013     	addi	x0, x0, 0x0
+     21c: 00000013     	addi	x0, x0, 0x0
+     220: 00028593     	addi	x11, x5, 0x0
+     224: fe1ff06f     	jal	x0, 0x204 <gcd>
+     228: 00000013     	addi	x0, x0, 0x0
+     22c: 00000013     	addi	x0, x0, 0x0
+
+00000230 <gcd_done>:
+     230: 00008067     	jalr	x0, 0x0(x1)
+     234: 00000013     	addi	x0, x0, 0x0
+     238: 00000013     	addi	x0, x0, 0x0
+		...
+
+00000600 <array>:
+     600: 07 00 00 00  	.word	0x00000007
+     604: fd ff ff ff  	.word	0xfffffffd
+     608: 0c 00 00 00  	.word	0x0000000c
+     60c: 00 00 00 00  	.word	0x00000000
+     610: 19 00 00 00  	.word	0x00000019
+     614: f8 ff ff ff  	.word	0xfffffff8

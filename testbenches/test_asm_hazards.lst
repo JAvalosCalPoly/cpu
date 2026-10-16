@@ -1,0 +1,123 @@
+
+testbenches/test_asm_hazards.o:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000413     	addi	x8, x0, 0x400
+       4: 60000493     	addi	x9, x0, 0x600
+       8: 00600913     	addi	x18, x0, 0x6
+       c: 00000613     	addi	x12, x0, 0x0
+
+00000010 <sum_loop>:
+      10: 0004a283     	lw	x5, 0x0(x9)
+      14: fff90913     	addi	x18, x18, -0x1
+      18: 00448493     	addi	x9, x9, 0x4
+      1c: 00560633     	add	x12, x12, x5
+      20: fe0918e3     	bne	x18, x0, 0x10 <sum_loop>
+      24: 00c42023     	sw	x12, 0x0(x8)
+      28: 60000493     	addi	x9, x0, 0x600
+      2c: 00600913     	addi	x18, x0, 0x6
+      30: 800006b7     	lui	x13, 0x80000
+
+00000034 <max_loop>:
+      34: 0004a283     	lw	x5, 0x0(x9)
+      38: fff90913     	addi	x18, x18, -0x1
+      3c: 00448493     	addi	x9, x9, 0x4
+      40: 0056d463     	bge	x13, x5, 0x48 <max_skip>
+      44: 005006b3     	add	x13, x0, x5
+
+00000048 <max_skip>:
+      48: fe0916e3     	bne	x18, x0, 0x34 <max_loop>
+      4c: 00d42223     	sw	x13, 0x4(x8)
+      50: 60000493     	addi	x9, x0, 0x600
+      54: 80000737     	lui	x14, 0x80000
+      58: 00600913     	addi	x18, x0, 0x6
+      5c: fff70713     	addi	x14, x14, -0x1
+
+00000060 <min_loop>:
+      60: 0004a283     	lw	x5, 0x0(x9)
+      64: fff90913     	addi	x18, x18, -0x1
+      68: 00448493     	addi	x9, x9, 0x4
+      6c: 00e2d463     	bge	x5, x14, 0x74 <min_skip>
+      70: 00500733     	add	x14, x0, x5
+
+00000074 <min_skip>:
+      74: fe0916e3     	bne	x18, x0, 0x60 <min_loop>
+      78: 00e42423     	sw	x14, 0x8(x8)
+      7c: 60000493     	addi	x9, x0, 0x600
+      80: 00000793     	addi	x15, x0, 0x0
+      84: 00600913     	addi	x18, x0, 0x6
+
+00000088 <neg_loop>:
+      88: 0004a283     	lw	x5, 0x0(x9)
+      8c: fff90913     	addi	x18, x18, -0x1
+      90: 00448493     	addi	x9, x9, 0x4
+      94: 0002d463     	bge	x5, x0, 0x9c <neg_skip>
+      98: 00178793     	addi	x15, x15, 0x1
+
+0000009c <neg_skip>:
+      9c: fe0916e3     	bne	x18, x0, 0x88 <neg_loop>
+      a0: 00f42623     	sw	x15, 0xc(x8)
+      a4: 60000493     	addi	x9, x0, 0x600
+      a8: 00600913     	addi	x18, x0, 0x6
+      ac: 00000813     	addi	x16, x0, 0x0
+
+000000b0 <umax_loop>:
+      b0: 0004a283     	lw	x5, 0x0(x9)
+      b4: fff90913     	addi	x18, x18, -0x1
+      b8: 00448493     	addi	x9, x9, 0x4
+      bc: 00587463     	bgeu	x16, x5, 0xc4 <umax_skip>
+      c0: 00500833     	add	x16, x0, x5
+
+000000c4 <umax_skip>:
+      c4: fe0916e3     	bne	x18, x0, 0xb0 <umax_loop>
+      c8: 01042823     	sw	x16, 0x10(x8)
+      cc: 60000493     	addi	x9, x0, 0x600
+      d0: 00600913     	addi	x18, x0, 0x6
+      d4: 00100893     	addi	x17, x0, 0x1
+
+000000d8 <prod_loop>:
+      d8: 0004a283     	lw	x5, 0x0(x9)
+      dc: fff90913     	addi	x18, x18, -0x1
+      e0: 00448493     	addi	x9, x9, 0x4
+      e4: 00028463     	beq	x5, x0, 0xec <prod_skip>
+      e8: 025888b3     	<unknown>
+
+000000ec <prod_skip>:
+      ec: fe0916e3     	bne	x18, x0, 0xd8 <prod_loop>
+      f0: 01142a23     	sw	x17, 0x14(x8)
+      f4: 00600993     	addi	x19, x0, 0x6
+      f8: 03364a33     	<unknown>
+      fc: 03366ab3     	<unknown>
+     100: 01442c23     	sw	x20, 0x18(x8)
+     104: 01542e23     	sw	x21, 0x1c(x8)
+     108: 03000513     	addi	x10, x0, 0x30
+     10c: 01200593     	addi	x11, x0, 0x12
+     110: 018000ef     	jal	x1, 0x128 <gcd>
+     114: 02a42023     	sw	x10, 0x20(x8)
+     118: d0e003b7     	lui	x7, 0xd0e00
+     11c: 00d38393     	addi	x7, x7, 0xd
+     120: 02742223     	sw	x7, 0x24(x8)
+
+00000124 <end>:
+     124: 0000006f     	jal	x0, 0x124 <end>
+
+00000128 <gcd>:
+     128: 00058a63     	beq	x11, x0, 0x13c <gcd_done>
+     12c: 02b562b3     	<unknown>
+     130: 00058513     	addi	x10, x11, 0x0
+     134: 00028593     	addi	x11, x5, 0x0
+     138: ff1ff06f     	jal	x0, 0x128 <gcd>
+
+0000013c <gcd_done>:
+     13c: 00008067     	jalr	x0, 0x0(x1)
+		...
+
+00000600 <array>:
+     600: 07 00 00 00  	.word	0x00000007
+     604: fd ff ff ff  	.word	0xfffffffd
+     608: 0c 00 00 00  	.word	0x0000000c
+     60c: 00 00 00 00  	.word	0x00000000
+     610: 19 00 00 00  	.word	0x00000019
+     614: f8 ff ff ff  	.word	0xfffffff8
