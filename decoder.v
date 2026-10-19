@@ -12,7 +12,8 @@ module decoder (
     output reg  [1:0]  wb_sel, // 00 ALU, 01 memory, 10 PC+4, 11 multiplier/divider
     output reg         branch, // branch
     output reg         jal, // jump to PC + imm
-    output reg         jalr // jump to rs1 + imm
+    output reg         jalr, // jump to rs1 + imm
+    output wire        is_csr
 );
 
 // opcodes (instr[6:0])
@@ -47,6 +48,9 @@ localparam ALU_ADD = 4'b0000;
 wire [6:0] opcode = instr[6:0];
 wire [2:0] funct3 = instr[14:12];
 wire       funct7_5 = instr[30];
+
+// for csr
+assign is_csr = (opcode == SYSTEM) && (funct3[1:0] != 2'b00);
 
 always@(*) begin
     reg_write = 1'b0;
@@ -137,6 +141,8 @@ always@(*) begin
         MISC_MEM: begin
         end
         SYSTEM: begin
+            reg_write = is_csr;
+            imm_sel = IMM_I;
         end
         // default: unknown opcode
         default: begin
