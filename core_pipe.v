@@ -328,6 +328,17 @@ assign mem_funct3 = id_ex_funct3;
 assign wb_data = (mem_wb_wb_sel == 2'b00) ? mem_wb_alu_result :
                  (mem_wb_wb_sel == 2'b01) ? mem_wb_mem_rdata :
                  (mem_wb_wb_sel == 2'b10) ? mem_wb_pc_plus4 : mem_wb_multdiv_result;
+wire [31:0] mem_csr_rdata; // old csr value
+
+csr u_csr (
+    .clk(clk),
+    .rst(rst),
+    .addr(ex_mem_csr_addr),
+    .src(ex_mem_csr_src),
+    .dst(mem_csr_rdata),
+    .we(ex_mem_csr_we),
+    .op(ex_mem_funct3[1:0])
+);
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         mem_wb_mem_rdata      <= 0;
@@ -339,7 +350,7 @@ always @(posedge clk or posedge rst) begin
         mem_wb_reg_write     <= 0;
     end else begin
         mem_wb_mem_rdata      <= mem_rdata;
-        mem_wb_alu_result    <= ex_mem_alu_result;
+        mem_wb_alu_result    <= ex_mem_is_csr ? mem_csr_rdata : ex_mem_alu_result;
         mem_wb_multdiv_result <= mem_is_mul ? mem_mul_result : ex_mem_multdiv_result;
         mem_wb_pc_plus4      <= ex_mem_pc_plus4;
         mem_wb_rd            <= ex_mem_rd;
