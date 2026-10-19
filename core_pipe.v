@@ -93,8 +93,8 @@ assign id_rs1 = if_id_instr[19:15];
 assign id_rs2 = if_id_instr[24:20];
 assign id_rd  = if_id_instr[11:7];
 assign id_funct3 = if_id_instr[14:12];
-assign stall = (id_ex_mem_read || ex_is_mul) && (id_ex_rd != 0) &&
-               ((id_ex_rd == id_rs1) || (id_ex_rd == id_rs2)); // load/mul-use hazard
+assign stall = (id_ex_mem_read || ex_is_mul || id_ex_is_csr) && (id_ex_rd != 0) &&
+               ((id_ex_rd == id_rs1) || (id_ex_rd == id_rs2)); // load/mul/csr-use hazard
 decoder u_decoder (
     .instr(if_id_instr),
     .reg_write(id_reg_write),
