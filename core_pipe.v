@@ -24,9 +24,13 @@ reg [3:0] id_ex_alu_op;
 reg [2:0] id_ex_funct3;
 reg [1:0] id_ex_alu_a_sel, id_ex_wb_sel;
 reg id_ex_alu_b_sel, id_ex_branch, id_ex_jal, id_ex_jalr, id_ex_mem_read, id_ex_mem_write, id_ex_reg_write;
+reg id_ex_is_csr;
 
 //EX/MEM
 reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
+reg ex_mem_is_csr, ex_mem_csr_we;
+reg [11:0] ex_mem_csr_addr;
+reg [31:0] ex_mem_csr_src;
 reg [4:0] ex_mem_rd;
 reg [2:0] ex_mem_funct3;
 reg [1:0] ex_mem_wb_sel;
@@ -82,7 +86,7 @@ wire [3:0] id_alu_op;
 wire [2:0] id_funct3, id_imm_sel;
 wire [1:0] id_alu_a_sel, id_wb_sel;
 wire id_alu_b_sel, id_reg_write, id_mem_read, id_mem_write;
-wire id_branch, id_jal, id_jalr;
+wire id_branch, id_jal, id_jalr, id_is_csr;
 wire [31:0] id_rs1_data, id_rs2_data, id_imm, wb_data;
 
 assign id_rs1 = if_id_instr[19:15];
@@ -103,7 +107,8 @@ decoder u_decoder (
     .wb_sel(id_wb_sel),
     .branch(id_branch),
     .jal(id_jal),
-    .jalr(id_jalr)
+    .jalr(id_jalr),
+    .is_csr(id_is_csr)
 );
 
 immgen u_immgen (
@@ -145,6 +150,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_read    <= 0;
         id_ex_mem_write   <= 0;
         id_ex_reg_write   <= 0;
+        id_ex_is_csr      <= 0;
     end else if (ex_redirect || stall) begin
         id_ex_reg_write   <= 0; // bubble
         id_ex_mem_write   <= 0;
@@ -153,6 +159,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_jal         <= 0;
         id_ex_jalr        <= 0;
         id_ex_rd          <= 0;
+        id_ex_is_csr      <= 0;
     end else if (ex_busy) begin
         id_ex_pc          <= id_ex_pc; // hold
         id_ex_pc_plus4    <= id_ex_pc_plus4; // hold
@@ -173,6 +180,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_read    <= id_ex_mem_read; // hold
         id_ex_mem_write   <= id_ex_mem_write; // hold
         id_ex_reg_write   <= id_ex_reg_write; // hold
+        id_ex_is_csr      <= id_ex_is_csr; // hold
     end else begin
         id_ex_pc          <= if_id_pc;
         id_ex_pc_plus4    <= if_id_pc_plus4;
@@ -193,6 +201,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_read    <= id_mem_read;
         id_ex_mem_write   <= id_mem_write;
         id_ex_reg_write   <= id_reg_write;
+        id_ex_is_csr      <= id_is_csr;
     end
 end
 
@@ -224,6 +233,9 @@ assign ex_alu_b = (id_ex_alu_b_sel == 1'b1) ? id_ex_imm : ex_rs2;
 //jump targets
 assign ex_branch_target = id_ex_pc + id_ex_imm;
 wire [31:0] ex_addr = ex_rs1 + id_ex_imm; // rs1 + imm, jalr & ld/st
+wire [31:0] ex_csr_src = id_ex_funct3[2] ? {27'b0, id_ex_rs1} : ex_rs1; // uimm or rs1
+wire ex_csr_we = id_ex_is_csr && ((id_ex_funct3[1:0] == 2'b01) || (id_ex_rs1 != 0)); // W always, S/C only if rs1 != 0
+
 assign ex_jalr_target = {ex_addr[31:1], 1'b0}; // rs1 + imm, bit 0 cleared
 //pc_next back to IF
 // assign pc_next = (id_ex_jalr) ? ex_jalr_target :
@@ -277,11 +289,17 @@ always @(posedge clk or posedge rst) begin
         ex_mem_mem_read     <= 0;
         ex_mem_mem_write    <= 0;
         ex_mem_reg_write    <= 0;
+        ex_mem_is_csr       <= 0;
+        ex_mem_csr_we       <= 0;
+        ex_mem_csr_addr     <= 0;
+        ex_mem_csr_src      <= 0;
     end else if (ex_busy) begin
         ex_mem_reg_write <= 0;
         ex_mem_mem_write <= 0;
         ex_mem_mem_read  <= 0;
         ex_mem_rd        <= 0;
+        ex_mem_is_csr    <= 0;
+        ex_mem_csr_we    <= 0;
     end else begin
         ex_mem_alu_result   <= ex_alu_result;
         ex_mem_multdiv_result<= div_result;
@@ -293,6 +311,10 @@ always @(posedge clk or posedge rst) begin
         ex_mem_mem_read     <= id_ex_mem_read;
         ex_mem_mem_write    <= id_ex_mem_write;
         ex_mem_reg_write    <= id_ex_reg_write;
+        ex_mem_is_csr       <= id_ex_is_csr;
+        ex_mem_csr_we       <= ex_csr_we;
+        ex_mem_csr_addr     <= id_ex_imm[11:0]; // csr addr
+        ex_mem_csr_src      <= ex_csr_src;
     end
 end
 
