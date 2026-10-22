@@ -49,6 +49,7 @@ wire [31:0] if_pc_plus4, pc_next;
 wire ex_redirect; // here since iverilog doesn't like it being declared later
 wire stall;
 wire ex_busy;
+wire mem_trap = 1'b0; // placeholder for trap handling
 wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2]; // mul in EX
 
 wire [31:0] fetch_addr = rst ? RESET_PC : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
@@ -322,7 +323,7 @@ end
 wire mem_is_mul = (ex_mem_wb_sel == 2'b11) && !ex_mem_funct3[2]; // mul in MEM
 assign mem_addr = ex_addr; // ex mem alu result gets this
 assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
-assign mem_write = id_ex_mem_write;
+assign mem_write = id_ex_mem_write && !mem_trap; // no store on trap
 assign mem_read  = id_ex_mem_read;
 assign mem_funct3 = id_ex_funct3;
 assign wb_data = (mem_wb_wb_sel == 2'b00) ? mem_wb_alu_result :
