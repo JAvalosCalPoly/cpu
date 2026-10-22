@@ -13,7 +13,11 @@ module decoder (
     output reg         branch, // branch
     output reg         jal, // jump to PC + imm
     output reg         jalr, // jump to rs1 + imm
-    output wire        is_csr
+    output wire        is_csr,
+    output wire        is_ecall,
+    output wire        is_ebreak,
+    output wire        is_mret,
+    output reg         illegal
 );
 
 // opcodes (instr[6:0])
@@ -47,11 +51,17 @@ localparam ALU_ADD = 4'b0000;
 // extraction from instruction
 wire [6:0] opcode = instr[6:0];
 wire [2:0] funct3 = instr[14:12];
+wire [6:0] funct7 = instr[31:25];
 wire       funct7_5 = instr[30];
+wire is_wfi;
 
 // for csr
 assign is_csr = (opcode == SYSTEM) && (funct3[1:0] != 2'b00);
-
+// for ecall, ebreak, mret
+assign is_ecall = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h000);
+assign is_ebreak = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h001);
+assign is_mret = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h302);
+assign is_wfi = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h105);
 always@(*) begin
     reg_write = 1'b0;
     imm_sel = 3'b000;
@@ -64,6 +74,7 @@ always@(*) begin
     branch = 1'b0;
     jal = 1'b0;
     jalr = 1'b0;
+    illegal = 1'b0;
     case(opcode)
         // R-type
         OP: begin
@@ -72,6 +83,8 @@ always@(*) begin
             alu_b_sel = B_RS2;
             if (instr[25]) wb_sel = WB_MUL;
             else alu_op = {funct7_5, funct3};
+            if (!(funct7 == 7'b0000000 || funct7 == 7'b0000001 ||
+                (funct7 == 7'b0100000 && (funct3 == 3'b000 || funct3 == 3'b101)))) illegal = 1'b1; // bad funct7
         end
         // I-type
         OP_IMM: begin
@@ -80,6 +93,8 @@ always@(*) begin
             alu_a_sel = A_RS1;
             alu_b_sel = B_IMM;
             alu_op = (funct3 == 3'b101) ? {funct7_5, funct3} : {1'b0, funct3};
+            if(funct3 == 3'b001 && funct7 != 7'b0000000) illegal = 1'b1;
+            if(funct3 == 3'b101 && funct7 != 7'b0000000 && funct7 != 7'b0100000) illegal = 1'b1;
         end
         // load
         LOAD: begin
@@ -90,6 +105,7 @@ always@(*) begin
             alu_op = ALU_ADD;
             mem_read = 1'b1;
             wb_sel = WB_MEM;
+            if(funct3 == 3'b011 || funct3 == 3'b110 || funct3 == 3'b111) illegal = 1'b1; // bad funct3
         end
         // store
         STORE: begin
@@ -98,11 +114,13 @@ always@(*) begin
             alu_b_sel = B_IMM;
             alu_op = ALU_ADD;
             mem_write = 1'b1;
+            if(funct3 >= 3'b011) illegal = 1'b1; // bad funct3
         end
         // branch
         BRANCH: begin
             imm_sel = IMM_B;
             branch = 1'b1;
+            if(funct3 == 3'b010 || funct3 == 3'b011) illegal = 1'b1; // bad funct3
         end
         // lui
         LUI: begin
@@ -136,16 +154,21 @@ always@(*) begin
             alu_op = ALU_ADD;
             wb_sel = WB_PC4;
             jalr = 1'b1;
+            if(funct3 != 3'b000) illegal = 1'b1; // bad funct3
         end
-        // MISC-MEM (fence) and SYSTEM (ecall, ebreak):
+        // MISC-MEM (fence) and SYSTEM:
         MISC_MEM: begin
         end
         SYSTEM: begin
             reg_write = is_csr;
             imm_sel = IMM_I;
+            if ((funct3 == 3'b100 || funct3 == 3'b000) && !is_ecall && !is_ebreak && !is_mret && !is_wfi) begin
+                illegal = 1'b1;
+            end
         end
         // default: unknown opcode
         default: begin
+            illegal = 1'b1;
         end
     endcase
 end
