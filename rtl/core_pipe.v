@@ -25,7 +25,7 @@ reg [2:0] id_ex_funct3;
 reg [1:0] id_ex_alu_a_sel, id_ex_wb_sel;
 reg id_ex_alu_b_sel, id_ex_branch, id_ex_jal, id_ex_jalr, id_ex_mem_read, id_ex_mem_write, id_ex_reg_write;
 reg id_ex_is_csr;
-
+reg id_ex_illegal, id_ex_ecall, id_ex_ebreak, id_ex_mret; // trap flags
 //EX/MEM
 reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
 reg ex_mem_is_csr, ex_mem_csr_we;
@@ -35,6 +35,7 @@ reg [4:0] ex_mem_rd;
 reg [2:0] ex_mem_funct3;
 reg [1:0] ex_mem_wb_sel;
 reg ex_mem_mem_read, ex_mem_mem_write, ex_mem_reg_write;
+reg ex_mem_illegal, ex_mem_ecall, ex_mem_ebreak, ex_mem_mret; // trap flags
 
 //MEM/WB
 reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
@@ -87,7 +88,8 @@ wire [3:0] id_alu_op;
 wire [2:0] id_funct3, id_imm_sel;
 wire [1:0] id_alu_a_sel, id_wb_sel;
 wire id_alu_b_sel, id_reg_write, id_mem_read, id_mem_write;
-wire id_branch, id_jal, id_jalr, id_is_csr;
+wire id_branch, id_jal, id_jalr, id_is_csr, id_illegal, id_ecall, id_ebreak, id_mret;
+
 wire [31:0] id_rs1_data, id_rs2_data, id_imm, wb_data;
 
 assign id_rs1 = if_id_instr[19:15];
@@ -109,7 +111,11 @@ decoder u_decoder (
     .branch(id_branch),
     .jal(id_jal),
     .jalr(id_jalr),
-    .is_csr(id_is_csr)
+    .is_csr(id_is_csr),
+    .is_ecall(id_ecall),
+    .is_ebreak(id_ebreak),
+    .is_mret(id_mret),
+    .illegal(id_illegal)
 );
 
 immgen u_immgen (
@@ -152,6 +158,10 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_write   <= 0;
         id_ex_reg_write   <= 0;
         id_ex_is_csr      <= 0;
+        id_ex_illegal     <= 0;
+        id_ex_ecall       <= 0;
+        id_ex_ebreak      <= 0;
+        id_ex_mret        <= 0;
     end else if (ex_redirect || stall) begin
         id_ex_reg_write   <= 0; // bubble
         id_ex_mem_write   <= 0;
@@ -161,6 +171,10 @@ always @(posedge clk or posedge rst) begin
         id_ex_jalr        <= 0;
         id_ex_rd          <= 0;
         id_ex_is_csr      <= 0;
+        id_ex_illegal     <= 0;
+        id_ex_ecall       <= 0;
+        id_ex_ebreak      <= 0;
+        id_ex_mret        <= 0;
     end else if (ex_busy) begin
         id_ex_pc          <= id_ex_pc; // hold
         id_ex_pc_plus4    <= id_ex_pc_plus4; // hold
@@ -182,6 +196,10 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_write   <= id_ex_mem_write; // hold
         id_ex_reg_write   <= id_ex_reg_write; // hold
         id_ex_is_csr      <= id_ex_is_csr; // hold
+        id_ex_illegal     <= id_ex_illegal; // hold
+        id_ex_ecall       <= id_ex_ecall; // hold
+        id_ex_ebreak      <= id_ex_ebreak; // hold
+        id_ex_mret        <= id_ex_mret; // hold
     end else begin
         id_ex_pc          <= if_id_pc;
         id_ex_pc_plus4    <= if_id_pc_plus4;
@@ -203,6 +221,10 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_write   <= id_mem_write;
         id_ex_reg_write   <= id_reg_write;
         id_ex_is_csr      <= id_is_csr;
+        id_ex_illegal     <= id_illegal;
+        id_ex_ecall       <= id_ecall;
+        id_ex_ebreak      <= id_ebreak;
+        id_ex_mret        <= id_mret;
     end
 end
 
@@ -294,6 +316,10 @@ always @(posedge clk or posedge rst) begin
         ex_mem_csr_we       <= 0;
         ex_mem_csr_addr     <= 0;
         ex_mem_csr_src      <= 0;
+        ex_mem_illegal      <= 0;
+        ex_mem_ecall        <= 0;
+        ex_mem_ebreak       <= 0;
+        ex_mem_mret         <= 0;
     end else if (ex_busy) begin
         ex_mem_reg_write <= 0;
         ex_mem_mem_write <= 0;
@@ -301,6 +327,10 @@ always @(posedge clk or posedge rst) begin
         ex_mem_rd        <= 0;
         ex_mem_is_csr    <= 0;
         ex_mem_csr_we    <= 0;
+        ex_mem_illegal   <= 0;
+        ex_mem_ecall     <= 0;
+        ex_mem_ebreak    <= 0;
+        ex_mem_mret      <= 0;
     end else begin
         ex_mem_alu_result   <= ex_alu_result;
         ex_mem_multdiv_result<= div_result;
@@ -316,11 +346,16 @@ always @(posedge clk or posedge rst) begin
         ex_mem_csr_we       <= ex_csr_we;
         ex_mem_csr_addr     <= id_ex_imm[11:0]; // csr addr
         ex_mem_csr_src      <= ex_csr_src;
+        ex_mem_illegal      <= id_ex_illegal;
+        ex_mem_ecall        <= id_ex_ecall;
+        ex_mem_ebreak       <= id_ex_ebreak;
+        ex_mem_mret         <= id_ex_mret;
     end
 end
 
 //MEM
 wire mem_is_mul = (ex_mem_wb_sel == 2'b11) && !ex_mem_funct3[2]; // mul in MEM
+wire [31:0] mem_pc = ex_mem_pc_plus4 - 32'd4; // pc of instr in MEM
 assign mem_addr = ex_addr; // ex mem alu result gets this
 assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
 assign mem_write = id_ex_mem_write && !mem_trap; // no store on trap
