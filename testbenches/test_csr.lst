@@ -1,0 +1,89 @@
+
+testbenches/test_csr.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 123450b7     	lui	x1, 0x12345
+       8: 67808093     	addi	x1, x1, 0x678
+       c: 34009073     	csrrw	x0, mscratch, x1
+      10: 34002173     	csrrs	x2, mscratch, x0
+      14: 002fa023     	sw	x2, 0x0(x31)
+      18: 0000b237     	lui	x4, 0xb
+      1c: aaa20213     	addi	x4, x4, -0x556
+      20: 340211f3     	csrrw	x3, mscratch, x4
+      24: 003fa223     	sw	x3, 0x4(x31)
+      28: 340022f3     	csrrs	x5, mscratch, x0
+      2c: 005fa423     	sw	x5, 0x8(x31)
+      30: 000013b7     	lui	x7, 0x1
+      34: f0f38393     	addi	x7, x7, -0xf1
+      38: 3403a373     	csrrs	x6, mscratch, x7
+      3c: 006fa623     	sw	x6, 0xc(x31)
+      40: 34002373     	csrrs	x6, mscratch, x0
+      44: 006fa823     	sw	x6, 0x10(x31)
+      48: 0ff00493     	addi	x9, x0, 0xff
+      4c: 3404b473     	csrrc	x8, mscratch, x9
+      50: 34002473     	csrrs	x8, mscratch, x0
+      54: 008faa23     	sw	x8, 0x14(x31)
+      58: 30046073     	csrrsi	x0, mstatus, 0x8
+      5c: 30002573     	csrrs	x10, mstatus, x0
+      60: 00afac23     	sw	x10, 0x18(x31)
+      64: fff00593     	addi	x11, x0, -0x1
+      68: 30059073     	csrrw	x0, mstatus, x11
+      6c: 30002573     	csrrs	x10, mstatus, x0
+      70: 00afae23     	sw	x10, 0x1c(x31)
+      74: 30047573     	csrrci	x10, mstatus, 0x8
+      78: 02afa023     	sw	x10, 0x20(x31)
+      7c: 30002573     	csrrs	x10, mstatus, x0
+      80: 02afa223     	sw	x10, 0x24(x31)
+      84: 00001637     	lui	x12, 0x1
+      88: 00360613     	addi	x12, x12, 0x3
+      8c: 34161073     	csrrw	x0, mepc, x12
+      90: 341026f3     	csrrs	x13, mepc, x0
+      94: 02dfa423     	sw	x13, 0x28(x31)
+      98: 34002773     	csrrs	x14, mscratch, x0
+      9c: 00170793     	addi	x15, x14, 0x1
+      a0: 02ffa623     	sw	x15, 0x2c(x31)
+      a4: 05500813     	addi	x16, x0, 0x55
+      a8: 34081073     	csrrw	x0, mscratch, x16
+      ac: 340028f3     	csrrs	x17, mscratch, x0
+      b0: 031fa823     	sw	x17, 0x30(x31)
+      b4: 34002973     	csrrs	x18, mscratch, x0
+      b8: 00000013     	addi	x0, x0, 0x0
+      bc: 012909b3     	add	x19, x18, x18
+      c0: 033faa23     	sw	x19, 0x34(x31)
+      c4: 07700a13     	addi	x20, x0, 0x77
+      c8: 340a1073     	csrrw	x0, mscratch, x20
+      cc: 34002af3     	csrrs	x21, mscratch, x0
+      d0: 035fac23     	sw	x21, 0x38(x31)
+      d4: 34002af3     	csrrs	x21, mscratch, x0
+      d8: 035fae23     	sw	x21, 0x3c(x31)
+      dc: 34001073     	csrrw	x0, mscratch, x0
+      e0: 34002b73     	csrrs	x22, mscratch, x0
+      e4: 056fa023     	sw	x22, 0x40(x31)
+      e8: 340fd073     	csrrwi	x0, mscratch, 0x1f
+      ec: 34002bf3     	csrrs	x23, mscratch, x0
+      f0: 057fa223     	sw	x23, 0x44(x31)
+      f4: 10000c13     	addi	x24, x0, 0x100
+      f8: 305c1073     	csrrw	x0, mtvec, x24
+      fc: 30502cf3     	csrrs	x25, mtvec, x0
+     100: 059fa423     	sw	x25, 0x48(x31)
+     104: 00b00c13     	addi	x24, x0, 0xb
+     108: 342c1073     	csrrw	x0, mcause, x24
+     10c: 34202cf3     	csrrs	x25, mcause, x0
+     110: 059fa623     	sw	x25, 0x4c(x31)
+     114: fff00d13     	addi	x26, x0, -0x1
+     118: 7c0d1073     	csrrw	x0, 0x7c0, x26
+     11c: 7c002df3     	csrrs	x27, 0x7c0, x0
+     120: 05bfa823     	sw	x27, 0x50(x31)
+     124: d0e00e37     	lui	x28, 0xd0e00
+     128: 00de0e13     	addi	x28, x28, 0xd
+     12c: 05cfaa23     	sw	x28, 0x54(x31)
+
+00000130 <end>:
+     130: 0000006f     	jal	x0, 0x130 <end>
+
+testbenches/test_csr.elf:	file format elf32-littleriscv
+00000000 T _start
+00000130 t end

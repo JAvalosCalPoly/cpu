@@ -1,0 +1,173 @@
+
+testbenches/test_asm.o:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000413     	addi	x8, x0, 0x400
+       4: 00500093     	addi	x1, x0, 0x5
+       8: 00700113     	addi	x2, x0, 0x7
+       c: 002081b3     	add	x3, x1, x2
+      10: 00342023     	sw	x3, 0x0(x8)
+      14: 401181b3     	sub	x3, x3, x1
+      18: 00342223     	sw	x3, 0x4(x8)
+      1c: 402081b3     	sub	x3, x1, x2
+      20: 00342423     	sw	x3, 0x8(x8)
+      24: 80218193     	addi	x3, x3, -0x7fe
+      28: 00342623     	sw	x3, 0xc(x8)
+      2c: 12345237     	lui	x4, 0x12345
+      30: 67820213     	addi	x4, x4, 0x678
+      34: 00442823     	sw	x4, 0x10(x8)
+      38: 800002b7     	lui	x5, 0x80000
+      3c: fff28293     	addi	x5, x5, -0x1
+      40: 00542a23     	sw	x5, 0x14(x8)
+
+00000044 <here>:
+      44: 00000317     	auipc	x6, 0x0
+      48: 00642c23     	sw	x6, 0x18(x8)
+      4c: fff24313     	xori	x6, x4, -0x1
+      50: 00642e23     	sw	x6, 0x1c(x8)
+      54: 0ff27393     	andi	x7, x4, 0xff
+      58: 7003e393     	ori	x7, x7, 0x700
+      5c: 02742023     	sw	x7, 0x20(x8)
+      60: 006243b3     	xor	x7, x4, x6
+      64: 02742223     	sw	x7, 0x24(x8)
+      68: 006273b3     	and	x7, x4, x6
+      6c: 02742423     	sw	x7, 0x28(x8)
+      70: 0020e3b3     	or	x7, x1, x2
+      74: 02742623     	sw	x7, 0x2c(x8)
+      78: 00409393     	slli	x7, x1, 0x4
+      7c: 02742823     	sw	x7, 0x30(x8)
+      80: 01c35393     	srli	x7, x6, 0x1c
+      84: 02742a23     	sw	x7, 0x34(x8)
+      88: 41c35393     	srai	x7, x6, 0x1c
+      8c: 02742c23     	sw	x7, 0x38(x8)
+      90: 002093b3     	sll	x7, x1, x2
+      94: 02742e23     	sw	x7, 0x3c(x8)
+      98: fff00493     	addi	x9, x0, -0x1
+      9c: 0014d3b3     	srl	x7, x9, x1
+      a0: 04742023     	sw	x7, 0x40(x8)
+      a4: 401353b3     	sra	x7, x6, x1
+      a8: 04742223     	sw	x7, 0x44(x8)
+      ac: ffe00513     	addi	x10, x0, -0x2
+      b0: 001523b3     	slt	x7, x10, x1
+      b4: 04742423     	sw	x7, 0x48(x8)
+      b8: 001533b3     	sltu	x7, x10, x1
+      bc: 04742623     	sw	x7, 0x4c(x8)
+      c0: fff52393     	slti	x7, x10, -0x1
+      c4: 04742823     	sw	x7, 0x50(x8)
+      c8: fff0b393     	sltiu	x7, x1, -0x1
+      cc: 04742a23     	sw	x7, 0x54(x8)
+      d0: 60000593     	addi	x11, x0, 0x600
+      d4: 80818637     	lui	x12, 0x80818
+      d8: f0160613     	addi	x12, x12, -0xff
+      dc: 00c5a023     	sw	x12, 0x0(x11)
+      e0: 00258383     	lb	x7, 0x2(x11)
+      e4: 04742c23     	sw	x7, 0x58(x8)
+      e8: 0025c383     	lbu	x7, 0x2(x11)
+      ec: 04742e23     	sw	x7, 0x5c(x8)
+      f0: 00259383     	lh	x7, 0x2(x11)
+      f4: 06742023     	sw	x7, 0x60(x8)
+      f8: 0025d383     	lhu	x7, 0x2(x11)
+      fc: 06742223     	sw	x7, 0x64(x8)
+     100: 0005a383     	lw	x7, 0x0(x11)
+     104: 00138393     	addi	x7, x7, 0x1
+     108: 06742423     	sw	x7, 0x68(x8)
+     10c: 001580a3     	sb	x1, 0x1(x11)
+     110: 00259123     	sh	x2, 0x2(x11)
+     114: 0005a383     	lw	x7, 0x0(x11)
+     118: 06742623     	sw	x7, 0x6c(x8)
+     11c: 00000693     	addi	x13, x0, 0x0
+     120: 00108463     	beq	x1, x1, 0x128 <b1>
+     124: 06468693     	addi	x13, x13, 0x64
+
+00000128 <b1>:
+     128: 00109463     	bne	x1, x1, 0x130 <b2>
+     12c: 00168693     	addi	x13, x13, 0x1
+
+00000130 <b2>:
+     130: 00154463     	blt	x10, x1, 0x138 <b3>
+     134: 06468693     	addi	x13, x13, 0x64
+
+00000138 <b3>:
+     138: 00155463     	bge	x10, x1, 0x140 <b4>
+     13c: 00268693     	addi	x13, x13, 0x2
+
+00000140 <b4>:
+     140: 00156463     	bltu	x10, x1, 0x148 <b5>
+     144: 00468693     	addi	x13, x13, 0x4
+
+00000148 <b5>:
+     148: 00157463     	bgeu	x10, x1, 0x150 <b6>
+     14c: 06468693     	addi	x13, x13, 0x64
+
+00000150 <b6>:
+     150: 06d42823     	sw	x13, 0x70(x8)
+     154: 00000713     	addi	x14, x0, 0x0
+     158: 00a00793     	addi	x15, x0, 0xa
+
+0000015c <loop>:
+     15c: 00f70733     	add	x14, x14, x15
+     160: fff78793     	addi	x15, x15, -0x1
+     164: fe079ce3     	bne	x15, x0, 0x15c <loop>
+     168: 06e42a23     	sw	x14, 0x74(x8)
+     16c: 01500513     	addi	x10, x0, 0x15
+     170: 018000ef     	jal	x1, 0x188 <double>
+     174: 06a42c23     	sw	x10, 0x78(x8)
+     178: 010000ef     	jal	x1, 0x188 <double>
+
+0000017c <ret2>:
+     17c: 06a42e23     	sw	x10, 0x7c(x8)
+     180: 08142023     	sw	x1, 0x80(x8)
+     184: 00c0006f     	jal	x0, 0x190 <after_func>
+
+00000188 <double>:
+     188: 00a50533     	add	x10, x10, x10
+     18c: 00008067     	jalr	x0, 0x0(x1)
+
+00000190 <after_func>:
+     190: 00600813     	addi	x16, x0, 0x6
+     194: ff900893     	addi	x17, x0, -0x7
+     198: 031803b3     	<unknown>
+     19c: 08742223     	sw	x7, 0x84(x8)
+     1a0: 80000937     	lui	x18, 0x80000
+     1a4: 032913b3     	<unknown>
+     1a8: 08742423     	sw	x7, 0x88(x8)
+     1ac: 0294b3b3     	<unknown>
+     1b0: 08742623     	sw	x7, 0x8c(x8)
+     1b4: 0294a3b3     	<unknown>
+     1b8: 08742823     	sw	x7, 0x90(x8)
+     1bc: fec00993     	addi	x19, x0, -0x14
+     1c0: 0309c3b3     	<unknown>
+     1c4: 08742a23     	sw	x7, 0x94(x8)
+     1c8: 0309e3b3     	<unknown>
+     1cc: 08742c23     	sw	x7, 0x98(x8)
+     1d0: 0304d3b3     	<unknown>
+     1d4: 08742e23     	sw	x7, 0x9c(x8)
+     1d8: 0304f3b3     	<unknown>
+     1dc: 0a742023     	sw	x7, 0xa0(x8)
+     1e0: 020843b3     	<unknown>
+     1e4: 0a742223     	sw	x7, 0xa4(x8)
+     1e8: 020863b3     	<unknown>
+     1ec: 0a742423     	sw	x7, 0xa8(x8)
+     1f0: 029943b3     	<unknown>
+     1f4: 0a742623     	sw	x7, 0xac(x8)
+     1f8: 00000a13     	addi	x20, x0, 0x0
+     1fc: 00100a93     	addi	x21, x0, 0x1
+     200: 01400b13     	addi	x22, x0, 0x14
+
+00000204 <fib>:
+     204: 015a0bb3     	add	x23, x20, x21
+     208: 000a8a13     	addi	x20, x21, 0x0
+     20c: 000b8a93     	addi	x21, x23, 0x0
+     210: fffb0b13     	addi	x22, x22, -0x1
+     214: fe0b18e3     	bne	x22, x0, 0x204 <fib>
+     218: 0b442823     	sw	x20, 0xb0(x8)
+     21c: 07b00013     	addi	x0, x0, 0x7b
+     220: 0a042a23     	sw	x0, 0xb4(x8)
+     224: d0e003b7     	lui	x7, 0xd0e00
+     228: 00d38393     	addi	x7, x7, 0xd
+     22c: 0a742c23     	sw	x7, 0xb8(x8)
+
+00000230 <end>:
+     230: 0000006f     	jal	x0, 0x230 <end>

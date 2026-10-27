@@ -1,12 +1,29 @@
+# sim outputs
 *.vcd
 *.vvp
 /testbenches/*.vvp
 /testbenches/*.vcd
+/testbenches/outs
 /testing
+/build/
+
+# program build files
 *.o
 *.bin
 *.elf
-/testbenches/outs
+/rvt/hex/
+/rvt/riscv-tests/
+
+*.jou
+*.log
+.Xil/
+*.cache/
+*.runs/
+*.hw/
+*.ip_user_files/
+*.sim/
+
+# latex
 /documentation/*.tex
 /documentation/*.aux
 /documentation/*.log
@@ -15,3 +32,6 @@
 /documentation/*.fls
 /documentation/*.fdb_latexmk
 /documentation/*.synctex.gz
+/documentation/*fig*.pdf
+/documentation/*.bib
+/documentation/*.bbl
