@@ -5,7 +5,13 @@ module csr (
     input wire [31:0] src,
     output reg [31:0] dst,
     input wire we,
-    input wire [1:0] op
+    input wire [1:0] op,
+    input  wire        trap,       // exception in MEM
+    input  wire [31:0] trap_pc,    // to mepc
+    input  wire [31:0] trap_cause, // to mcause
+    input  wire        mret,       // mret in MEM
+    output wire [31:0] mtvec_o,    // trap target
+    output wire [31:0] mepc_o      // mret target
 );
 
 localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342;
@@ -15,6 +21,9 @@ reg mstatus_mie, mstatus_mpie;
 
 wire [31:0] wdata = (op == 2'b01) ? src :
                     (op == 2'b10) ? (dst | src) : (dst & ~src); // W, S, C
+
+assign mtvec_o = {mtvec[31:2], 2'b00}; // direct mode
+assign mepc_o = {mepc, 2'b00};
 
 always @(*) begin
     case (addr)
@@ -35,6 +44,14 @@ always @(posedge clk or posedge rst) begin
         mcause <= 32'b0;
         mstatus_mie <= 1'b0;
         mstatus_mpie <= 1'b0;
+    end else if (trap) begin
+        mepc <= trap_pc[31:2];
+        mcause <= trap_cause;
+        mstatus_mpie <= mstatus_mie;
+        mstatus_mie <= 1'b0; // disable interrupts on trap
+    end else if (mret) begin
+        mstatus_mie <= mstatus_mpie; // restore mie from mpie
+        mstatus_mpie <= 1'b1; // set mpie to 1 on mret
     end else if (we) begin
         case (addr)
             MSTATUS:  {mstatus_mpie, mstatus_mie} <= {wdata[7], wdata[3]};
