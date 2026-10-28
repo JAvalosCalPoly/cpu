@@ -13,6 +13,7 @@
 *.elf
 /rvt/hex/
 /rvt/riscv-tests/
+/vivado/
 
 *.jou
 *.log

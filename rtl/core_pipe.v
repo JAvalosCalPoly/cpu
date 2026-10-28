@@ -16,6 +16,7 @@ module core_pipe#(parameter RESET_PC = 32'h00000000)(
 );
 //IF/ID
 reg [31:0] if_id_pc, if_id_instr, if_id_pc_plus4;
+reg if_id_valid;
 
 //ID/EX
 reg [31:0] id_ex_pc, id_ex_pc_plus4, id_ex_rs1_data, id_ex_rs2_data, id_ex_imm;
@@ -26,6 +27,7 @@ reg [1:0] id_ex_alu_a_sel, id_ex_wb_sel;
 reg id_ex_alu_b_sel, id_ex_branch, id_ex_jal, id_ex_jalr, id_ex_mem_read, id_ex_mem_write, id_ex_reg_write;
 reg id_ex_is_csr;
 reg id_ex_illegal, id_ex_ecall, id_ex_ebreak, id_ex_mret; // trap flags
+reg id_ex_valid;
 //EX/MEM
 reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
 reg ex_mem_is_csr, ex_mem_csr_we;
@@ -36,6 +38,7 @@ reg [2:0] ex_mem_funct3;
 reg [1:0] ex_mem_wb_sel;
 reg ex_mem_mem_read, ex_mem_mem_write, ex_mem_reg_write;
 reg ex_mem_illegal, ex_mem_ecall, ex_mem_ebreak, ex_mem_mret; // trap flags
+reg ex_mem_valid;
 
 //MEM/WB
 reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
@@ -70,26 +73,31 @@ always @(posedge clk or posedge rst) begin
         if_id_pc       <= 0;
         if_id_instr    <= 32'h00000013; // addi x0, x0, 0
         if_id_pc_plus4 <= 0;
+        if_id_valid      <= 0;
     end else if (mem_trap) begin
         pc             <= trap_target;
         if_id_pc       <= 0;
         if_id_instr    <= 32'h00000013; // addi x0, x0, 0
         if_id_pc_plus4 <= 0;
+        if_id_valid      <= 0;
     end else if (ex_redirect) begin
         pc             <= pc_next;
         if_id_pc       <= 0;
         if_id_instr    <= 32'h00000013; // addi x0, x0, 0
         if_id_pc_plus4 <= 0;
+        if_id_valid      <= 0;
     end else if (stall || ex_busy) begin
         pc             <= pc; // hold pc
         if_id_pc       <= if_id_pc; // hold if_id_pc
         if_id_instr    <= if_id_instr; // hold if_id_instr
         if_id_pc_plus4 <= if_id_pc_plus4; // hold if_id_pc_plus4
+        if_id_valid      <= if_id_valid; // hold if_id_valid
     end else begin
         pc             <= pc_next;
         if_id_pc       <= pc;
         if_id_instr    <= instr;
         if_id_pc_plus4 <= if_pc_plus4;
+        if_id_valid      <= 1;
     end
 end
 
@@ -173,7 +181,9 @@ always @(posedge clk or posedge rst) begin
         id_ex_ecall       <= 0;
         id_ex_ebreak      <= 0;
         id_ex_mret        <= 0;
+        id_ex_valid       <= 0;
     end else if (ex_redirect || stall || mem_trap) begin
+        id_ex_valid       <= 0; // bubble
         id_ex_reg_write   <= 0; // bubble
         id_ex_mem_write   <= 0;
         id_ex_mem_read    <= 0;
@@ -212,6 +222,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_ecall       <= id_ex_ecall; // hold
         id_ex_ebreak      <= id_ex_ebreak; // hold
         id_ex_mret        <= id_ex_mret; // hold
+        id_ex_valid       <= id_ex_valid; // hold
     end else begin
         id_ex_pc          <= if_id_pc;
         id_ex_pc_plus4    <= if_id_pc_plus4;
@@ -237,6 +248,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_ecall       <= id_ecall;
         id_ex_ebreak      <= id_ebreak;
         id_ex_mret        <= id_mret;
+        id_ex_valid       <= if_id_valid; // valid instruction moving into EX stage
     end
 end
 
@@ -333,7 +345,9 @@ always @(posedge clk or posedge rst) begin
         ex_mem_ecall        <= 0;
         ex_mem_ebreak       <= 0;
         ex_mem_mret         <= 0;
+        ex_mem_valid        <= 0;
     end else if (mem_trap ||ex_busy) begin
+        ex_mem_valid        <= 0;
         ex_mem_reg_write <= 0;
         ex_mem_mem_write <= 0;
         ex_mem_mem_read  <= 0;
@@ -345,6 +359,7 @@ always @(posedge clk or posedge rst) begin
         ex_mem_ebreak    <= 0;
         ex_mem_mret      <= 0;
     end else begin
+        ex_mem_valid        <= id_ex_valid; // valid instruction moving into MEM stage
         ex_mem_alu_result   <= ex_alu_result;
         ex_mem_multdiv_result<= div_result;
         ex_mem_rs2_data     <= ex_rs2;
