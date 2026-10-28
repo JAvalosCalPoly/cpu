@@ -50,7 +50,10 @@ wire [31:0] if_pc_plus4, pc_next;
 wire ex_redirect; // here since iverilog doesn't like it being declared later
 wire stall;
 wire ex_busy;
-wire mem_trap = 1'b0; // placeholder for trap handling
+wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak; // illegal, ecall or ebreak in MEM
+wire [31:0] mem_cause = ex_mem_illegal ? 32'd2 : ex_mem_ebreak ? 32'd3 : ex_mem_ecall ? 32'd11 : 32'd0;
+wire mem_trap = mem_exc || ex_mem_mret;  // flush + redirect
+wire [31:0] csr_mtvec, csr_mepc;
 wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2]; // mul in EX
 
 wire [31:0] fetch_addr = rst ? RESET_PC : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
@@ -373,7 +376,13 @@ csr u_csr (
     .src(ex_mem_csr_src),
     .dst(mem_csr_rdata),
     .we(ex_mem_csr_we),
-    .op(ex_mem_funct3[1:0])
+    .op(ex_mem_funct3[1:0]),
+    .trap(mem_exc),
+    .trap_pc(mem_pc),
+    .trap_cause(mem_cause),
+    .mret(ex_mem_mret),
+    .mtvec_o(csr_mtvec),
+    .mepc_o(csr_mepc)
 );
 always @(posedge clk or posedge rst) begin
     if (rst) begin
