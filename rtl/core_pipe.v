@@ -56,7 +56,8 @@ wire mem_trap = mem_exc || ex_mem_mret;  // flush + redirect
 wire [31:0] csr_mtvec, csr_mepc;
 wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2]; // mul in EX
 
-wire [31:0] fetch_addr = rst ? RESET_PC : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
+wire [31:0] trap_target = mem_exc ? csr_mtvec : csr_mepc; // trap or mret
+wire [31:0] fetch_addr = rst ? RESET_PC : mem_trap ? trap_target : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
 
 assign instr_addr  = fetch_addr;
 assign if_pc_plus4 = pc + 4;
@@ -64,6 +65,11 @@ assign if_pc_plus4 = pc + 4;
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         pc             <= RESET_PC;
+        if_id_pc       <= 0;
+        if_id_instr    <= 32'h00000013; // addi x0, x0, 0
+        if_id_pc_plus4 <= 0;
+    end else if (mem_trap) begin
+        pc             <= trap_target;
         if_id_pc       <= 0;
         if_id_instr    <= 32'h00000013; // addi x0, x0, 0
         if_id_pc_plus4 <= 0;
@@ -165,7 +171,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_ecall       <= 0;
         id_ex_ebreak      <= 0;
         id_ex_mret        <= 0;
-    end else if (ex_redirect || stall) begin
+    end else if (ex_redirect || stall || mem_trap) begin
         id_ex_reg_write   <= 0; // bubble
         id_ex_mem_write   <= 0;
         id_ex_mem_read    <= 0;
@@ -323,7 +329,7 @@ always @(posedge clk or posedge rst) begin
         ex_mem_ecall        <= 0;
         ex_mem_ebreak       <= 0;
         ex_mem_mret         <= 0;
-    end else if (ex_busy) begin
+    end else if (mem_trap ||ex_busy) begin
         ex_mem_reg_write <= 0;
         ex_mem_mem_write <= 0;
         ex_mem_mem_read  <= 0;
@@ -400,7 +406,7 @@ always @(posedge clk or posedge rst) begin
         mem_wb_pc_plus4      <= ex_mem_pc_plus4;
         mem_wb_rd            <= ex_mem_rd;
         mem_wb_wb_sel        <= ex_mem_wb_sel;
-        mem_wb_reg_write     <= ex_mem_reg_write;
+        mem_wb_reg_write     <= ex_mem_reg_write && !mem_trap;
     end
 end
 
