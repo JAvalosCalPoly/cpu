@@ -176,6 +176,7 @@ always @(posedge clk or posedge rst) begin
         id_ex_mem_write   <= 0;
         id_ex_mem_read    <= 0;
         id_ex_branch      <= 0;
+        id_ex_wb_sel      <= 0;
         id_ex_jal         <= 0;
         id_ex_jalr        <= 0;
         id_ex_rd          <= 0;
@@ -299,6 +300,7 @@ divider u_divider (
     .a(ex_rs1),
     .b(ex_rs2),
     .op(id_ex_funct3[1:0]),
+    .flush(mem_trap),
     .busy(div_busy),
     .done(div_done),
     .result(div_result)

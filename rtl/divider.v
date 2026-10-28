@@ -3,6 +3,7 @@ module divider (
     input  wire        start,      // 1 cycle: begin
     input  wire [31:0] a, b,       // dividend, divisor
     input  wire [1:0]  op,         // funct3[1:0]: 00 div, 01 divu, 10 rem, 11 remu
+    input wire flush, // because of trap it needs to stop the division process
     output reg         busy,       // working
     output reg         done,       // 1 cycle: result ready
     output reg  [31:0] result
@@ -20,6 +21,9 @@ always @(posedge clk) begin
     done <= 0;
     if (rst) begin
         busy <= 0; // only these matter
+    end else if (flush) begin
+        busy <= 0;
+        done <= 0;
     end else if (start && !busy) begin
         busy <= 1;
         dividend <= a_neg ? -a : a; // (|a|) if negative, take 2's complement
