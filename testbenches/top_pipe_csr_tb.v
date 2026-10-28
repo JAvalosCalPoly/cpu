@@ -69,10 +69,9 @@ else $display("DONE after %0d cycles", cycles);
         check(15, 32'h0000_0077, "csrrs rs1=x0 no write");
         check(16, 32'h0000_0000, "csrrw rs1=x0 writes 0");
         check(17, 32'h0000_001F, "csrrwi uimm 31");
-// other csrs
+// other csrs ([20] moved to the trap test)
         check(18, 32'h0000_0100, "mtvec");
         check(19, 32'h0000_000B, "mcause");
-        check(20, 32'h0000_0000, "unknown csr reads 0");
         check(21, 32'hD0E0_000D, "DONE marker");
 
 $display("%0d passed / %0d failed", pass, fail);

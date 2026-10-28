@@ -73,17 +73,13 @@ Disassembly of section .text:
      108: 342c1073     	csrrw	x0, mcause, x24
      10c: 34202cf3     	csrrs	x25, mcause, x0
      110: 059fa623     	sw	x25, 0x4c(x31)
-     114: fff00d13     	addi	x26, x0, -0x1
-     118: 7c0d1073     	csrrw	x0, 0x7c0, x26
-     11c: 7c002df3     	csrrs	x27, 0x7c0, x0
-     120: 05bfa823     	sw	x27, 0x50(x31)
-     124: d0e00e37     	lui	x28, 0xd0e00
-     128: 00de0e13     	addi	x28, x28, 0xd
-     12c: 05cfaa23     	sw	x28, 0x54(x31)
+     114: d0e00e37     	lui	x28, 0xd0e00
+     118: 00de0e13     	addi	x28, x28, 0xd
+     11c: 05cfaa23     	sw	x28, 0x54(x31)
 
-00000130 <end>:
-     130: 0000006f     	jal	x0, 0x130 <end>
+00000120 <end>:
+     120: 0000006f     	jal	x0, 0x120 <end>
 
 testbenches/test_csr.elf:	file format elf32-littleriscv
 00000000 T _start
-00000130 t end
+00000120 t end

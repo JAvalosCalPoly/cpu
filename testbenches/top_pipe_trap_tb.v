@@ -63,8 +63,12 @@ else $display("DONE after %0d cycles", cycles);
         check(13, 32'h0000_0077, "illegal R-type: rd not written");
         check(14, 32'h0000_0000, "store behind trap blocked");
         check(15, 32'h0000_0064, "div flushed, handler div ok");
+// unknown csr
+        check(18, 32'h0000_0002, "unknown csr mcause = 2");
+        check(19, `SIG(20),      "unknown csr mepc = its own pc");
+        check(21, 32'h0000_0055, "unknown csr: rd not written");
 // handler
-        check(16, 32'h0000_0006, "handler ran 6 times");
+        check(16, 32'h0000_0007, "handler ran 7 times");
         check(17, 32'hD0E0_000D, "DONE marker");
 
 $display("%0d passed / %0d failed", pass, fail);

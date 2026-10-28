@@ -11,7 +11,8 @@ module csr (
     input  wire [31:0] trap_cause, // to mcause
     input  wire        mret,       // mret in MEM
     output wire [31:0] mtvec_o,    // trap target
-    output wire [31:0] mepc_o      // mret target
+    output wire [31:0] mepc_o,      // mret target
+    output wire valid // is csr addr valid
 );
 
 localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342;
@@ -24,6 +25,7 @@ wire [31:0] wdata = (op == 2'b01) ? src :
 
 assign mtvec_o = {mtvec[31:2], 2'b00}; // direct mode
 assign mepc_o = {mepc, 2'b00};
+assign valid = (addr == MSTATUS) || (addr == MTVEC) || (addr == MSCRATCH) || (addr == MEPC) || (addr == MCAUSE);
 
 always @(*) begin
     case (addr)

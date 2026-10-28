@@ -118,11 +118,7 @@ _start:
     csrr x25, mcause             # x25 = B
     sw   x25, 76(x31)
 
-    # [20] unknown csr reads 0, write ignored
-    li   x26, -1
-    csrw 0x7C0, x26
-    csrr x27, 0x7C0              # x27 = 0
-    sw   x27, 80(x31)
+    # [20] moved to test_trap.S (unknown csr traps now)
 
 # --- done ------------------------------------------------------------
     # [21] DONE marker

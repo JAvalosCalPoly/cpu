@@ -69,8 +69,18 @@ e3: .word 0x00000000
     li   x19, 4
     sw   x27, 60(x31)
 
+# --- unknown csr is illegal ------------------------------------------
+    # [18] mcause  [19] mepc  [20] addr of e4  [21] rd not written
+    addi x18, x31, 72            # handler writes [18], [19], [20]
+    li   x11, 0x55
+    li   x12, -1
+e4: csrrw x11, 0x7C0, x12        # traps, x11 must stay 0x55
+    sw   x11, 84(x31)            # [21]
+    la   x5, e4
+    sw   x5, 80(x31)             # [20] replaces handler's mstatus
+
 # --- done ------------------------------------------------------------
-    # [16] handler ran 6 times
+    # [16] handler ran 7 times
     sw   x20, 64(x31)
     # [17] DONE marker
     li   x8, 0xD0E0000D
