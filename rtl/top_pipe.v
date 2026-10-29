@@ -6,8 +6,8 @@ module top_pipe #(
     parameter ADDR_BITS = 12,
     parameter INIT_FILE = "testbenches/test_asm_hazards.hex"
 )(
-    input wire clk,
-    input wire rst
+input wire clk,
+input wire rst
 );
 
     wire [31:0] instr_addr, instr;
@@ -17,9 +17,10 @@ module top_pipe #(
     wire is_timer = (mem_addr[31:16] == 16'h0200); // its a timer, theyre at 0x0200_xxxx
 
     wire [31:0] ram_rdata, timer_rdata; // mem and timer load data
+    wire timer_irq;                     // timer -> core
     reg is_timer_r;                     // last access was timer
-    always @(posedge clk) is_timer_r <= is_timer;
-    assign mem_rdata = is_timer_r ? timer_rdata : ram_rdata; // pick last cycle's device
+always @(posedge clk) is_timer_r <= is_timer;
+assign mem_rdata = is_timer_r ? timer_rdata : ram_rdata; // pick last cycle's device
 
     core_pipe #(.RESET_PC(RESET_PC)) u_core (
     .clk        (clk),
@@ -31,7 +32,8 @@ module top_pipe #(
     .mem_rdata  (mem_rdata),
     .mem_write  (mem_write),
     .mem_read   (mem_read),
-    .mem_funct3 (mem_funct3)
+    .mem_funct3 (mem_funct3),
+    .timer_irq  (timer_irq)
     );
 
     memory #(.ADDR_BITS(ADDR_BITS), .INIT_FILE(INIT_FILE)) u_memory (
@@ -45,7 +47,6 @@ module top_pipe #(
     .instr      (instr),
     .mem_rdata  (ram_rdata)
     );
-    
     timer u_timer (
         .clk   (clk),
         .rst   (rst),
@@ -53,7 +54,7 @@ module top_pipe #(
         .wdata (mem_wdata),
         .we    (mem_write && is_timer),
         .rdata (timer_rdata),
-        .irq   ()
+        .irq   (timer_irq)
     );
 
 endmodule

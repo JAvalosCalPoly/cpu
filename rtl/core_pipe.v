@@ -12,7 +12,9 @@ module core_pipe#(parameter RESET_PC = 32'h00000000)(
     output wire [31:0] mem_wdata,
     output wire        mem_write,
     output wire        mem_read,
-    output wire [2:0]  mem_funct3
+    output wire [2:0]  mem_funct3,
+    // interrupts
+    input  wire        timer_irq   // from timer: mtime >= mtimecmp
 );
 //IF/ID
 reg [31:0] if_id_pc, if_id_instr, if_id_pc_plus4;
@@ -54,14 +56,20 @@ wire ex_redirect; // here since iverilog doesn't like it being declared later
 wire stall;
 wire ex_busy;
 wire csr_valid;
+wire csr_int_pending; // MIE && MTIE && MTIP
 wire mem_csr_bad = ex_mem_is_csr && !csr_valid;
 wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak || mem_csr_bad; // illegal, ecall, ebreak or bad csr in MEM
-wire [31:0] mem_cause = (ex_mem_illegal || mem_csr_bad) ? 32'd2 : ex_mem_ebreak ? 32'd3 : ex_mem_ecall ? 32'd11 : 32'd0;
-wire mem_trap = mem_exc || ex_mem_mret;  // flush + redirect
+// interrupt: real instr in MEM, not a store, no exception
+wire mem_int = csr_int_pending && ex_mem_valid && !ex_mem_mem_write && !mem_exc;
+wire [31:0] mem_cause = mem_int ? 32'h8000_0007 :                    // timer interrupt
+                        (ex_mem_illegal || mem_csr_bad) ? 32'd2 :     // illegal
+                        ex_mem_ebreak ? 32'd3 :                       // breakpoint
+                        ex_mem_ecall ? 32'd11 : 32'd0;                // ecall from M
+wire mem_trap = mem_exc || mem_int || ex_mem_mret;  // flush + redirect
 wire [31:0] csr_mtvec, csr_mepc;
 wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2]; // mul in EX
 
-wire [31:0] trap_target = mem_exc ? csr_mtvec : csr_mepc; // trap or mret
+wire [31:0] trap_target = (mem_exc || mem_int) ? csr_mtvec : csr_mepc; // trap/int or mret
 wire [31:0] fetch_addr = rst ? RESET_PC : mem_trap ? trap_target : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
 
 assign instr_addr  = fetch_addr;
@@ -402,13 +410,15 @@ csr u_csr (
     .dst(mem_csr_rdata),
     .we(ex_mem_csr_we),
     .op(ex_mem_funct3[1:0]),
-    .trap(mem_exc),
+    .trap(mem_exc || mem_int), // save mepc/mcause
     .trap_pc(mem_pc),
     .trap_cause(mem_cause),
     .mret(ex_mem_mret),
     .mtvec_o(csr_mtvec),
     .mepc_o(csr_mepc),
-    .valid(csr_valid)
+    .valid(csr_valid),
+    .timer_irq(timer_irq),
+    .int_pending(csr_int_pending)
 );
 always @(posedge clk or posedge rst) begin
     if (rst) begin
