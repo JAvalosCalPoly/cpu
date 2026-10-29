@@ -10,6 +10,8 @@ module csr_tb;
     reg trap, mret;            // trap inputs
     reg [31:0] trap_pc, trap_cause;
     wire [31:0] mtvec_o, mepc_o;
+    wire valid, int_pending;
+    reg timer_irq;             // from timer
 
 csr dut (
     .clk(clk),
@@ -24,7 +26,10 @@ csr dut (
     .trap_cause(trap_cause),
     .mret(mret),
     .mtvec_o(mtvec_o),
-    .mepc_o(mepc_o)
+    .mepc_o(mepc_o),
+    .valid(valid),
+    .timer_irq(timer_irq),
+    .int_pending(int_pending)
 );
 
 always #5 clk = ~clk; // 10 ns clock
@@ -75,7 +80,7 @@ endtask
 
 initial begin
     clk = 0; rst = 1; addr = 0; src = 0; we = 0; op = 0;
-    trap = 0; mret = 0; trap_pc = 0; trap_cause = 0;
+    trap = 0; mret = 0; trap_pc = 0; trap_cause = 0; timer_irq = 0;
     pass = 0; fail = 0;
     #12 rst = 0; // off the clock edge
     // op: 01 W, 10 S, 11 C
@@ -115,6 +120,23 @@ initial begin
     we = 0;
     addr = 12'h340; #1; expect(dst, 32'hDEADBEF0, "csr write blocked by trap"); // unchanged
     addr = 12'h342; #1; expect(dst, 32'h00000002, "mcause illegal");
+    // mie / mip / int_pending   (last trap left mstatus = 0x80)
+    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00000080, 32'h00000088); // MIE on
+    run(12'h304, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00000080); // mie: only MTIE sticks
+    expect(int_pending, 1'b0, "no irq: int_pending 0");
+    timer_irq = 1;
+    addr = 12'h344; #1; expect(dst, 32'h00000080, "mip shows MTIP");
+    expect(int_pending, 1'b1, "MIE+MTIE+MTIP: pending");
+    run(12'h344, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000080); // clear mip: ignored
+    expect(valid, 1'b1, "mip is valid");
+    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00000088, 32'h00000080); // global MIE off
+    expect(int_pending, 1'b0, "MIE off: not pending");
+    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00000080, 32'h00000088); // MIE back on
+    run(12'h304, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000000); // MTIE off
+    expect(int_pending, 1'b0, "MTIE off: not pending");
+    timer_irq = 0;
+    addr = 12'h344; #1; expect(dst, 32'h00000000, "mip follows irq");
+    addr = 12'h7C0; #1; expect(valid, 1'b0, "0x7C0 not valid");
     $display("CSR testbench finished: %0d passed / %0d failed", pass, fail);
     $finish;
 end

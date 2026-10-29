@@ -12,10 +12,14 @@ module csr (
     input  wire        mret,       // mret in MEM
     output wire [31:0] mtvec_o,    // trap target
     output wire [31:0] mepc_o,      // mret target
-    output wire valid // is csr addr valid
+    output wire valid, // is csr addr valid
+    input  wire timer_irq, // when mtime >= mtimecmp
+    output wire int_pending // take that interrupt
 );
 
-localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342;
+localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342,
+    MIE = 12'h304, MIP = 12'h344;
+reg mie_mtie; // mie bit 7: timer enable
 reg [31:0] mtvec, mscratch, mcause;
 reg [31:2] mepc; // mepc[1:0] always 0
 reg mstatus_mie, mstatus_mpie;
@@ -25,7 +29,8 @@ wire [31:0] wdata = (op == 2'b01) ? src :
 
 assign mtvec_o = {mtvec[31:2], 2'b00}; // direct mode
 assign mepc_o = {mepc, 2'b00};
-assign valid = (addr == MSTATUS) || (addr == MTVEC) || (addr == MSCRATCH) || (addr == MEPC) || (addr == MCAUSE);
+assign valid = (addr == MSTATUS) || (addr == MTVEC) || (addr == MSCRATCH) || (addr == MEPC) || (addr == MCAUSE) || (addr == MIE) || (addr == MIP);
+assign int_pending = mstatus_mie && mie_mtie && timer_irq; // global on, timer on, timer firing
 
 always @(*) begin
     case (addr)
@@ -34,6 +39,8 @@ always @(*) begin
         MSCRATCH: dst = mscratch;
         MEPC: dst = {mepc, 2'b0};
         MCAUSE: dst = mcause;
+        MIE: dst = {24'b0, mie_mtie, 7'b0};  // MTIE at bit 7
+        MIP: dst = {24'b0, timer_irq, 7'b0}; // MTIP at bit 7
         default: dst = 32'b0;
     endcase
 end
@@ -46,6 +53,7 @@ always @(posedge clk or posedge rst) begin
         mcause <= 32'b0;
         mstatus_mie <= 1'b0;
         mstatus_mpie <= 1'b0;
+        mie_mtie <= 1'b0;
     end else if (trap) begin
         mepc <= trap_pc[31:2];
         mcause <= trap_cause;
@@ -61,6 +69,8 @@ always @(posedge clk or posedge rst) begin
             MSCRATCH: mscratch <= wdata;
             MEPC:     mepc     <= wdata[31:2];
             MCAUSE:   mcause   <= wdata;
+            MIE:      mie_mtie <= wdata[7];
+            MIP:      ; // read-only
             default: ;
         endcase
     end

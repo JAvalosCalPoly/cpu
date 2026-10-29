@@ -1,5 +1,5 @@
 
-testbenches/test_asm.o:	file format elf32-littleriscv
+testbenches/test_asm.elf:	file format elf32-littleriscv
 
 Disassembly of section .text:
 
@@ -171,3 +171,19 @@ Disassembly of section .text:
 
 00000230 <end>:
      230: 0000006f     	jal	x0, 0x230 <end>
+
+testbenches/test_asm.elf:	file format elf32-littleriscv
+00000000 T _start
+00000044 t here
+00000128 t b1
+00000130 t b2
+00000138 t b3
+00000140 t b4
+00000148 t b5
+00000150 t b6
+0000015c t loop
+0000017c t ret2
+00000188 t double
+00000190 t after_func
+00000204 t fib
+00000230 t end
