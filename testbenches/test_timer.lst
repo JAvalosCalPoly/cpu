@@ -1,0 +1,99 @@
+
+testbenches/test_timer.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 60000f13     	addi	x30, x0, 0x600
+       8: 02004137     	lui	x2, 0x2004
+       c: 0200c1b7     	lui	x3, 0x200c
+      10: ff818193     	addi	x3, x3, -0x8
+      14: 00002283     	lw	x5, 0x0(x0)
+      18: 005fa023     	sw	x5, 0x0(x31)
+      1c: 123452b7     	lui	x5, 0x12345
+      20: 67828293     	addi	x5, x5, 0x678
+      24: 00512023     	sw	x5, 0x0(x2)
+      28: 0000a2b7     	lui	x5, 0xa
+      2c: abc28293     	addi	x5, x5, -0x544
+      30: 00512223     	sw	x5, 0x4(x2)
+      34: 00012303     	lw	x6, 0x0(x2)
+      38: 006fa223     	sw	x6, 0x4(x31)
+      3c: 00412303     	lw	x6, 0x4(x2)
+      40: 006fa423     	sw	x6, 0x8(x31)
+      44: 00002303     	lw	x6, 0x0(x0)
+      48: 006fa623     	sw	x6, 0xc(x31)
+      4c: 0001a383     	lw	x7, 0x0(x3)
+      50: 00000013     	addi	x0, x0, 0x0
+      54: 00000013     	addi	x0, x0, 0x0
+      58: 00000013     	addi	x0, x0, 0x0
+      5c: 0001a403     	lw	x8, 0x0(x3)
+      60: 407404b3     	sub	x9, x8, x7
+      64: 009fa823     	sw	x9, 0x10(x31)
+      68: fff00293     	addi	x5, x0, -0x1
+      6c: 00512223     	sw	x5, 0x4(x2)
+      70: 344022f3     	csrrs	x5, mip, x0
+      74: 005faa23     	sw	x5, 0x14(x31)
+      78: 00000097     	auipc	x1, 0x0
+      7c: 09008093     	addi	x1, x1, 0x90
+      80: 30509073     	csrrw	x0, mtvec, x1
+      84: 00000a13     	addi	x20, x0, 0x0
+      88: 0001a203     	lw	x4, 0x0(x3)
+      8c: 03c20213     	addi	x4, x4, 0x3c
+      90: 00412023     	sw	x4, 0x0(x2)
+      94: 00012223     	sw	x0, 0x4(x2)
+      98: 08000293     	addi	x5, x0, 0x80
+      9c: 3042a073     	csrrs	x0, mie, x5
+      a0: 30046073     	csrrsi	x0, mstatus, 0x8
+      a4: 00000513     	addi	x10, x0, 0x0
+      a8: 00100593     	addi	x11, x0, 0x1
+      ac: 03300613     	addi	x12, x0, 0x33
+
+000000b0 <loop>:
+      b0: 00b50533     	add	x10, x10, x11
+      b4: 00259693     	slli	x13, x11, 0x2
+      b8: 01e686b3     	add	x13, x13, x30
+      bc: 00a6a023     	sw	x10, 0x0(x13)
+      c0: 00158593     	addi	x11, x11, 0x1
+      c4: fec596e3     	bne	x11, x12, 0xb0 <loop>
+
+000000c8 <loop_end>:
+      c8: 00afac23     	sw	x10, 0x18(x31)
+      cc: 014fae23     	sw	x20, 0x1c(x31)
+      d0: 300022f3     	csrrs	x5, mstatus, x0
+      d4: 025fa823     	sw	x5, 0x30(x31)
+      d8: 344022f3     	csrrs	x5, mip, x0
+      dc: 025faa23     	sw	x5, 0x34(x31)
+      e0: 00000297     	auipc	x5, 0x0
+      e4: fd028293     	addi	x5, x5, -0x30
+      e8: 025fac23     	sw	x5, 0x38(x31)
+      ec: 00000297     	auipc	x5, 0x0
+      f0: fdc28293     	addi	x5, x5, -0x24
+      f4: 025fae23     	sw	x5, 0x3c(x31)
+      f8: d0e002b7     	lui	x5, 0xd0e00
+      fc: 00d28293     	addi	x5, x5, 0xd
+     100: 045fa023     	sw	x5, 0x40(x31)
+
+00000104 <end>:
+     104: 0000006f     	jal	x0, 0x104 <end>
+
+00000108 <handler>:
+     108: 34202af3     	csrrs	x21, mcause, x0
+     10c: 035fa023     	sw	x21, 0x20(x31)
+     110: 34102b73     	csrrs	x22, mepc, x0
+     114: 036fa223     	sw	x22, 0x24(x31)
+     118: 30002bf3     	csrrs	x23, mstatus, x0
+     11c: 037fa423     	sw	x23, 0x28(x31)
+     120: 34402c73     	csrrs	x24, mip, x0
+     124: 038fa623     	sw	x24, 0x2c(x31)
+     128: fff00c93     	addi	x25, x0, -0x1
+     12c: 01912223     	sw	x25, 0x4(x2)
+     130: 001a0a13     	addi	x20, x20, 0x1
+     134: 30200073     	mret
+
+testbenches/test_timer.elf:	file format elf32-littleriscv
+00000000 T _start
+000000b0 t loop
+000000c8 t loop_end
+00000104 t end
+00000108 t handler

@@ -18,27 +18,17 @@ module board_top (
     always @(posedge clk) rst_sync <= {rst_sync[0], ~CPU_RESETN | ~locked}; // button or clock not ready
     wire rst = rst_sync[1];                                                  // the second flip-flop
 
-    wire [31:0] instr_addr, instr, mem_addr, mem_wdata, mem_rdata;
-    wire        mem_write, mem_read;
-    wire [2:0]  mem_funct3;
+    wire        store;
+    wire [31:0] store_data;
 
-    core_pipe u_core (
-        .clk(clk), .rst(rst),
-        .instr(instr), .instr_addr(instr_addr),
-        .mem_addr(mem_addr), .mem_wdata(mem_wdata), .mem_rdata(mem_rdata),
-        .mem_write(mem_write), .mem_read(mem_read), .mem_funct3(mem_funct3)
-    );
-
-    memory #(.ADDR_BITS(12), .INIT_FILE("test_trap.hex")) u_memory (
-        .clk(clk),
-        .instr_addr(instr_addr), .mem_addr(mem_addr), .mem_wdata(mem_wdata),
-        .mem_write(mem_write), .mem_read(mem_read), .mem_funct3(mem_funct3),
-        .instr(instr), .mem_rdata(mem_rdata)
+    top_pipe #(.ADDR_BITS(12), .INIT_FILE("test_timer.hex")) u_top (
+    .clk(clk), .rst(rst),
+    .store(store), .store_data(store_data)
     );
 
     // latch every store, so the DONE marker ends up showing: 000D
     always @(posedge clk)
         if (rst)            LED <= 0;
-        else if (mem_write) LED <= mem_wdata[15:0];
+        else if (store) LED <= store_data[15:0];
 endmodule
 `default_nettype wire

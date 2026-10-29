@@ -4,10 +4,12 @@
 module top_pipe #(
     parameter RESET_PC  = 32'h0000_0000,
     parameter ADDR_BITS = 12,
-    parameter INIT_FILE = "testbenches/test_asm_hazards.hex"
+    parameter INIT_FILE = "testbenches/test_timer.hex"
 )(
 input wire clk,
-input wire rst
+input wire rst,
+output wire        store,      // a store happened (for LEDs)
+output wire [31:0] store_data 
 );
 
     wire [31:0] instr_addr, instr;
@@ -21,6 +23,8 @@ input wire rst
     reg is_timer_r;                     // last access was timer
 always @(posedge clk) is_timer_r <= is_timer;
 assign mem_rdata = is_timer_r ? timer_rdata : ram_rdata; // pick last cycle's device
+assign store      = mem_write;
+assign store_data = mem_wdata;
 
     core_pipe #(.RESET_PC(RESET_PC)) u_core (
     .clk        (clk),
