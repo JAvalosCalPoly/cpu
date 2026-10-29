@@ -3,7 +3,8 @@
 module board_top (
     input  wire        CLK100MHZ,
     input  wire        CPU_RESETN,   // red button, active low
-    output reg  [15:0] LED
+    output reg  [15:0] LED,
+    output wire        UART_RXD_OUT    // serial out
 );
     // 100 MHz in, 80 MHz out
     wire clk, locked;
@@ -23,7 +24,8 @@ module board_top (
 
     top_pipe #(.ADDR_BITS(12), .INIT_FILE("test_timer.hex")) u_top (
     .clk(clk), .rst(rst),
-    .store(store), .store_data(store_data)
+    .store(store), .store_data(store_data),
+    .uart_tx(UART_RXD_OUT)
     );
 
     // latch every store, so the DONE marker ends up showing: 000D

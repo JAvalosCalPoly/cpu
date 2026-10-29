@@ -1,0 +1,88 @@
+
+testbenches/test_uart.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 00004137     	lui	x2, 0x4
+       4: 00000413     	addi	x8, x0, 0x0
+       8: 00100493     	addi	x9, x0, 0x1
+       c: 01000913     	addi	x18, x0, 0x10
+
+00000010 <fib_loop>:
+      10: 00040513     	addi	x10, x8, 0x0
+      14: 04c000ef     	jal	x1, 0x60 <print_uint>
+      18: 00a00513     	addi	x10, x0, 0xa
+      1c: 02c000ef     	jal	x1, 0x48 <uart_putc>
+      20: 009402b3     	add	x5, x8, x9
+      24: 00048413     	addi	x8, x9, 0x0
+      28: 00028493     	addi	x9, x5, 0x0
+      2c: fff90913     	addi	x18, x18, -0x1
+      30: fe0910e3     	bne	x18, x0, 0x10 <fib_loop>
+      34: 40000293     	addi	x5, x0, 0x400
+      38: d0e00337     	lui	x6, 0xd0e00
+      3c: 00d30313     	addi	x6, x6, 0xd
+      40: 0062a023     	sw	x6, 0x0(x5)
+
+00000044 <halt>:
+      44: 0000006f     	jal	x0, 0x44 <halt>
+
+00000048 <uart_putc>:
+      48: 100002b7     	lui	x5, 0x10000
+
+0000004c <uart_wait>:
+      4c: 0082a303     	lw	x6, 0x8(x5)
+      50: 00137313     	andi	x6, x6, 0x1
+      54: fe031ce3     	bne	x6, x0, 0x4c <uart_wait>
+      58: 00a2a023     	sw	x10, 0x0(x5)
+      5c: 00008067     	jalr	x0, 0x0(x1)
+
+00000060 <print_uint>:
+      60: ff010113     	addi	x2, x2, -0x10
+      64: 00112623     	sw	x1, 0xc(x2)
+      68: 00812423     	sw	x8, 0x8(x2)
+      6c: 00912223     	sw	x9, 0x4(x2)
+      70: 01212023     	sw	x18, 0x0(x2)
+      74: 00050413     	addi	x8, x10, 0x0
+      78: 3b9ad4b7     	lui	x9, 0x3b9ad
+      7c: a0048493     	addi	x9, x9, -0x600
+      80: 00000913     	addi	x18, x0, 0x0
+
+00000084 <print_digit>:
+      84: 029452b3     	<unknown>
+      88: 00029463     	bne	x5, x0, 0x90 <print_it>
+      8c: 00090863     	beq	x18, x0, 0x9c <skip_zero>
+
+00000090 <print_it>:
+      90: 00100913     	addi	x18, x0, 0x1
+      94: 03028513     	addi	x10, x5, 0x30
+      98: fb1ff0ef     	jal	x1, 0x48 <uart_putc>
+
+0000009c <skip_zero>:
+      9c: 02947433     	<unknown>
+      a0: 00a00313     	addi	x6, x0, 0xa
+      a4: 0264d4b3     	<unknown>
+      a8: fc049ee3     	bne	x9, x0, 0x84 <print_digit>
+      ac: 00091663     	bne	x18, x0, 0xb8 <print_done>
+      b0: 03000513     	addi	x10, x0, 0x30
+      b4: f95ff0ef     	jal	x1, 0x48 <uart_putc>
+
+000000b8 <print_done>:
+      b8: 00012903     	lw	x18, 0x0(x2)
+      bc: 00412483     	lw	x9, 0x4(x2)
+      c0: 00812403     	lw	x8, 0x8(x2)
+      c4: 00c12083     	lw	x1, 0xc(x2)
+      c8: 01010113     	addi	x2, x2, 0x10
+      cc: 00008067     	jalr	x0, 0x0(x1)
+
+testbenches/test_uart.elf:	file format elf32-littleriscv
+00000000 T _start
+00000010 t fib_loop
+00000044 t halt
+00000048 t uart_putc
+0000004c t uart_wait
+00000060 t print_uint
+00000084 t print_digit
+00000090 t print_it
+0000009c t skip_zero
+000000b8 t print_done

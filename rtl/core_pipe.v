@@ -14,7 +14,9 @@ module core_pipe#(parameter RESET_PC = 32'h00000000)(
     output wire        mem_read,
     output wire [2:0]  mem_funct3,
     // interrupts
-    input  wire        timer_irq   // from timer: mtime >= mtimecmp
+    input  wire        timer_irq,  // from timer: mtime >= mtimecmp
+    output wire load_commit,
+    output wire [31:0] commit_addr
 );
 //IF/ID
 reg [31:0] if_id_pc, if_id_instr, if_id_pc_plus4;
@@ -74,6 +76,8 @@ wire [31:0] fetch_addr = rst ? RESET_PC : mem_trap ? trap_target : ex_redirect ?
 
 assign instr_addr  = fetch_addr;
 assign if_pc_plus4 = pc + 4;
+assign load_commit = ex_mem_mem_read && !mem_trap;
+assign commit_addr = ex_mem_alu_result;
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
