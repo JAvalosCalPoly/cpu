@@ -97,3 +97,5 @@ testbenches/test_timer.elf:	file format elf32-littleriscv
 000000c8 t loop_end
 00000104 t end
 00000108 t handler
+00000140 B __bss_end
+00000140 B __bss_start

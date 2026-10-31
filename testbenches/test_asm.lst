@@ -187,3 +187,5 @@ testbenches/test_asm.elf:	file format elf32-littleriscv
 00000190 t after_func
 00000204 t fib
 00000230 t end
+00000240 B __bss_end
+00000240 B __bss_start

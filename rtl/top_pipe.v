@@ -10,6 +10,7 @@ module top_pipe #(
 )(
 input wire clk,
 input wire rst,
+input wire uart_rx,
 output wire        store,      // a store happened (for LEDs)
 output wire [31:0] store_data, // its data
 output wire        uart_tx     // serial out
@@ -86,7 +87,9 @@ assign rx_pop = load_commit && (commit_addr == 32'h1000_0004); // rx load retire
         .wdata (mem_wdata),
         .we    (mem_write && is_uart),
         .rdata (uart_rdata),
-        .tx    (uart_tx)
+        .tx    (uart_tx),
+        .rx    (uart_rx),
+        .rx_pop (rx_pop)
     );
 endmodule
 `default_nettype wire

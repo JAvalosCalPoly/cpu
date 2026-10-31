@@ -95,3 +95,5 @@ testbenches/test_trap.elf:	file format elf32-littleriscv
 000000bc t e4
 000000e0 t end
 000000e4 t handler
+00000120 B __bss_end
+00000120 B __bss_start

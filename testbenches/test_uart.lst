@@ -86,3 +86,5 @@ testbenches/test_uart.elf:	file format elf32-littleriscv
 00000090 t print_it
 0000009c t skip_zero
 000000b8 t print_done
+000000d0 B __bss_end
+000000d0 B __bss_start

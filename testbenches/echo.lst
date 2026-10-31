@@ -1,0 +1,107 @@
+
+testbenches/echo.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 00004137     	lui	x2, 0x4
+
+00000004 <.Lpcrel_hi0>:
+       4: 00000297     	auipc	x5, 0x0
+       8: 14c28293     	addi	x5, x5, 0x14c
+
+0000000c <.Lpcrel_hi1>:
+       c: 00000317     	auipc	x6, 0x0
+      10: 14830313     	addi	x6, x6, 0x148
+
+00000014 <.Ltmp0>:
+      14: 0062f863     	bgeu	x5, x6, 0x24 <.Ltmp1>
+      18: 0002a023     	sw	x0, 0x0(x5)
+      1c: 00428293     	addi	x5, x5, 0x4
+      20: ff5ff06f     	jal	x0, 0x14 <.Ltmp0>
+
+00000024 <.Ltmp1>:
+      24: 008000ef     	jal	x1, 0x2c <main>
+
+00000028 <.Ltmp2>:
+      28: 0000006f     	jal	x0, 0x28 <.Ltmp2>
+
+0000002c <main>:
+      2c: 0d400513     	addi	x10, x0, 0xd4
+      30: 0200c5b7     	lui	x11, 0x200c
+      34: 30551073     	csrrw	x0, mtvec, x10
+      38: ff85a503     	lw	x10, -0x8(x11)
+      3c: 15002603     	lw	x12, 0x150(x0)
+      40: 020046b7     	lui	x13, 0x2004
+      44: fff00713     	addi	x14, x0, -0x1
+      48: 00e6a223     	sw	x14, 0x4(x13)
+      4c: 00361713     	slli	x14, x12, 0x3
+      50: 40c70733     	sub	x14, x14, x12
+      54: 01f77713     	andi	x14, x14, 0x1f
+      58: 00e50533     	add	x10, x10, x14
+      5c: 01e50513     	addi	x10, x10, 0x1e
+      60: 00a6a023     	sw	x10, 0x0(x13)
+      64: ffc5a583     	lw	x11, -0x4(x11)
+      68: 10000537     	lui	x10, 0x10000
+      6c: 08000613     	addi	x12, x0, 0x80
+      70: 00800713     	addi	x14, x0, 0x8
+      74: 00b6a223     	sw	x11, 0x4(x13)
+      78: 30462073     	csrrs	x0, mie, x12
+      7c: 30072073     	csrrs	x0, mstatus, x14
+      80: 00400593     	addi	x11, x0, 0x4
+      84: 00852603     	lw	x12, 0x8(x10)
+      88: 00267613     	andi	x12, x12, 0x2
+      8c: fe060ce3     	beq	x12, x0, 0x84 <main+0x58>
+      90: 00452603     	lw	x12, 0x4(x10)
+      94: 0ff67613     	andi	x12, x12, 0xff
+      98: 00b60c63     	beq	x12, x11, 0xb0 <main+0x84>
+      9c: 00852683     	lw	x13, 0x8(x10)
+      a0: 0016f693     	andi	x13, x13, 0x1
+      a4: fe069ce3     	bne	x13, x0, 0x9c <main+0x70>
+      a8: 00c52023     	sw	x12, 0x0(x10)
+      ac: fd9ff06f     	jal	x0, 0x84 <main+0x58>
+      b0: 00800513     	addi	x10, x0, 0x8
+      b4: 30053073     	csrrc	x0, mstatus, x10
+      b8: 15002503     	lw	x10, 0x150(x0)
+      bc: 40a02223     	sw	x10, 0x404(x0)
+      c0: d0e00537     	lui	x10, 0xd0e00
+      c4: 00d50513     	addi	x10, x10, 0xd
+      c8: 40a02023     	sw	x10, 0x400(x0)
+      cc: 00000513     	addi	x10, x0, 0x0
+      d0: 00008067     	jalr	x0, 0x0(x1)
+
+000000d4 <trap>:
+      d4: ff010113     	addi	x2, x2, -0x10
+      d8: 00a12623     	sw	x10, 0xc(x2)
+      dc: 00b12423     	sw	x11, 0x8(x2)
+      e0: 00c12223     	sw	x12, 0x4(x2)
+      e4: 00d12023     	sw	x13, 0x0(x2)
+      e8: 15002583     	lw	x11, 0x150(x0)
+      ec: 0200c637     	lui	x12, 0x200c
+      f0: 00158593     	addi	x11, x11, 0x1
+      f4: 14b02823     	sw	x11, 0x150(x0)
+      f8: ff862583     	lw	x11, -0x8(x12)
+      fc: 15002503     	lw	x10, 0x150(x0)
+     100: 00351693     	slli	x13, x10, 0x3
+     104: 40a686b3     	sub	x13, x13, x10
+     108: 02004537     	lui	x10, 0x2004
+     10c: 01f6f693     	andi	x13, x13, 0x1f
+     110: 00d585b3     	add	x11, x11, x13
+     114: fff00693     	addi	x13, x0, -0x1
+     118: 01e58593     	addi	x11, x11, 0x1e
+     11c: 00d52223     	sw	x13, 0x4(x10)
+     120: 00b52023     	sw	x11, 0x0(x10)
+     124: ffc62583     	lw	x11, -0x4(x12)
+     128: 00b52223     	sw	x11, 0x4(x10)
+     12c: 00c12503     	lw	x10, 0xc(x2)
+     130: 00812583     	lw	x11, 0x8(x2)
+     134: 00412603     	lw	x12, 0x4(x2)
+     138: 00012683     	lw	x13, 0x0(x2)
+     13c: 01010113     	addi	x2, x2, 0x10
+     140: 30200073     	mret
+00000000 T _start
+0000002c T main
+000000d4 t trap
+00000150 B __bss_start
+00000150 b ticks
+00000154 B __bss_end

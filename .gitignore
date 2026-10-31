@@ -6,6 +6,7 @@
 /testbenches/outs
 /testing
 /build/
+/scripts
 
 # program build files
 *.o

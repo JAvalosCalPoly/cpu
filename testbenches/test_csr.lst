@@ -83,3 +83,5 @@ Disassembly of section .text:
 testbenches/test_csr.elf:	file format elf32-littleriscv
 00000000 T _start
 00000120 t end
+00000130 B __bss_end
+00000130 B __bss_start
