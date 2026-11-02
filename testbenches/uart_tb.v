@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 // uart tx: idle, send, status, dropped write, polled back-to-back
+// uart rx: receive, pop, glitch, framing error, overrun, full duplex
 module uart_tb;
 
     reg clk;
@@ -9,6 +10,8 @@ module uart_tb;
     reg we;
     wire [31:0] rdata;
     wire tx;
+    reg rx = 1;                     // tb drives the pc side
+    reg rx_pop = 0;
 
 uart #(.CLK_HZ(1_000_000), .BAUD(100_000)) dut (
     .clk(clk),
@@ -17,7 +20,9 @@ uart #(.CLK_HZ(1_000_000), .BAUD(100_000)) dut (
     .wdata(wdata),
     .we(we),
     .rdata(rdata),
-    .tx(tx)
+    .tx(tx),
+    .rx(rx),
+    .rx_pop(rx_pop)
 );
 
 localparam DIV = 10;            // clocks per bit
@@ -48,6 +53,35 @@ task recv(output [7:0] b);
         if (tx !== 1'b1) begin
             $display("FAIL: stop bit"); fail = fail + 1;
         end
+    end
+endtask
+
+// act like the pc sending, stop = 0 makes a framing error
+task send(input [7:0] b, input stop);
+    integer i;
+    begin
+        rx = 0; repeat (DIV) @(posedge clk);          // start
+        for (i = 0; i < 8; i = i + 1) begin
+            rx = b[i]; repeat (DIV) @(posedge clk);   // lsb first
+        end
+        rx = stop; repeat (DIV) @(posedge clk);       // stop
+        rx = 1;
+    end
+endtask
+
+// read a register, rdata is one clock late
+task rd(input [3:0] off, output [31:0] d);
+    begin
+        @(negedge clk) addr = off;
+        @(negedge clk) d = rdata;
+    end
+endtask
+
+// cpu load from rx retires: one pop pulse
+task pop;
+    begin
+        @(negedge clk) rx_pop = 1;
+        @(negedge clk) rx_pop = 0;
     end
 endtask
 
@@ -94,6 +128,7 @@ endtask
 
     reg busy;
     integer edges;
+    reg [31:0] d;
 
     // test stimulus
     initial begin
@@ -157,6 +192,81 @@ endtask
         write(4'h8, 32'h46);
         status(busy);
         check(busy, 0, "write to status ignored");
+
+        // 7) rx: nothing yet
+        rd(4'h8, d);
+        check(d[1], 0, "rx_valid idle");
+
+        // 8) receive a byte
+        send(8'h5A, 1);
+        repeat (DIV) @(posedge clk);
+        rd(4'h8, d);
+        check(d[1], 1, "rx_valid after byte");
+        rd(4'h4, d);
+        check(d, 32'h5A, "rx byte 5A");
+        rd(4'h8, d);
+        check(d[1], 1, "reading alone doesn't pop");
+
+        // 9) pop clears valid
+        pop;
+        rd(4'h8, d);
+        check(d[1], 0, "pop clears rx_valid");
+
+        // 10) glitch: short low pulse is not a start bit
+        @(negedge clk) rx = 0;
+        repeat (2) @(negedge clk);
+        rx = 1;
+        repeat (15*DIV) @(posedge clk);
+        rd(4'h8, d);
+        check(d[1], 0, "glitch ignored");
+
+        // 11) framing error: bad stop bit, no byte
+        send(8'h33, 0);
+        repeat (15*DIV) @(posedge clk);
+        rd(4'h8, d);
+        check(d[1], 0, "bad stop bit dropped");
+        send(8'hC3, 1);                     // recovers after
+        repeat (DIV) @(posedge clk);
+        rd(4'h4, d);
+        check(d, 32'hC3, "rx works after framing error");
+        pop;
+
+        // 12) overrun: two bytes, no read, newest wins
+        send(8'h11, 1);
+        send(8'h22, 1);
+        repeat (DIV) @(posedge clk);
+        rd(4'h4, d);
+        check(d, 32'h22, "overrun keeps newest");
+        pop;
+
+        // 13) full duplex: tx and rx at once
+        wait_idle;
+        fork
+            write(0, 32'h51);               // 'Q' out
+            recv(got);
+            send(8'h52, 1);                 // 'R' in
+        join
+        check(got, 8'h51, "tx Q during rx");
+        repeat (DIV) @(posedge clk);
+        rd(4'h4, d);
+        check(d, 32'h52, "rx R during tx");
+
+        pop;
+
+        // 14) rx_data holds while the next byte shifts in
+        send(8'hA5, 1);
+        fork
+            send(8'h0F, 1);                 // next byte arriving
+            begin
+                repeat (6*DIV) @(posedge clk);  // mid frame
+                rd(4'h4, d);
+                check(d, 32'hA5, "rx byte stable during next");
+            end
+        join
+        repeat (DIV) @(posedge clk);
+        rd(4'h4, d);
+        check(d, 32'h0F, "then next byte");
+        pop;
 
         $display("uart testbench finished: %0d passed / %0d failed", pass, fail);
         $finish;

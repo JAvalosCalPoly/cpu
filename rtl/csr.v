@@ -30,6 +30,7 @@ reg [1:0] priv;
 wire [31:0] wdata = (op == 2'b01) ? src :
                     (op == 2'b10) ? (dst | src) : (dst & ~src); // W, S, C
 wire csr_ok   = (priv >= addr[9:8]);// mode high enough
+//wire csr_ok = 1'b1; // for testing
 wire ro_write = (addr[11:10] == 2'b11) && we;// write to read-only
 wire csr_exists = (addr == MSTATUS) || (addr == MTVEC) || (addr == MSCRATCH) ||
                   (addr == MEPC) || (addr == MCAUSE) || (addr == MIE) || (addr == MIP);
