@@ -84,10 +84,10 @@ initial begin
     pass = 0; fail = 0;
     #12 rst = 0; // off the clock edge
     // op: 01 W, 10 S, 11 C
-    // mstatus: only bits 7, 3
-    run(12'h300, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00000088); // W all ones
-    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00000088, 32'h00000080); // C bit 3
-    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00000080, 32'h00000088); // S bit 3
+    // mstatus: bits 12:11 (MPP), 7 (MPIE), 3 (MIE)
+    run(12'h300, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00001888); // W all ones, MPP=11
+    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00001888, 32'h00001880); // C bit 3
+    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888); // S bit 3
     // mscratch
     run(12'h340, 2'b01, 32'hDEADBEEF, 1'b1, 32'h00000000, 32'hDEADBEEF); // W
     run(12'h340, 2'b10, 32'h00000010, 1'b1, 32'hDEADBEEF, 32'hDEADBEFF); // S bit 4
@@ -105,12 +105,12 @@ initial begin
     // trap / mret
     run(12'h305, 2'b01, 32'h00000101, 1'b1, 32'h00000100, 32'h00000101); // mtvec, mode bit set
     expect(mtvec_o, 32'h00000100, "mtvec_o drops mode");
-    run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h00000088, 32'h00000008); // MIE=1, MPIE=0
+    run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h00001888, 32'h00000008); // MIE=1, MPIE=0, MPP=00
     do_trap(32'h00000040, 32'd11);                                        // ecall at 0x40
     addr = 12'h341; #1; expect(dst, 32'h00000040, "mepc after trap");
     expect(mepc_o, 32'h00000040, "mepc_o after trap");
     addr = 12'h342; #1; expect(dst, 32'h0000000B, "mcause after trap");
-    addr = 12'h300; #1; expect(dst, 32'h00000080, "mstatus after trap");
+    addr = 12'h300; #1; expect(dst, 32'h00001880, "mstatus after trap"); // MPP=11
     run(12'h341, 2'b01, 32'h00000044, 1'b1, 32'h00000040, 32'h00000044); // handler: mepc += 4
     do_mret;
     addr = 12'h300; #1; expect(dst, 32'h00000088, "mstatus after mret");
@@ -120,8 +120,8 @@ initial begin
     we = 0;
     addr = 12'h340; #1; expect(dst, 32'hDEADBEF0, "csr write blocked by trap"); // unchanged
     addr = 12'h342; #1; expect(dst, 32'h00000002, "mcause illegal");
-    // mie / mip / int_pending   (last trap left mstatus = 0x80)
-    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00000080, 32'h00000088); // MIE on
+    // mie / mip / int_pending   (last trap left mstatus = 0x1880)
+    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888); // MIE on
     run(12'h304, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00000080); // mie: only MTIE sticks
     expect(int_pending, 1'b0, "no irq: int_pending 0");
     timer_irq = 1;
@@ -129,9 +129,9 @@ initial begin
     expect(int_pending, 1'b1, "MIE+MTIE+MTIP: pending");
     run(12'h344, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000080); // clear mip: ignored
     expect(valid, 1'b1, "mip is valid");
-    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00000088, 32'h00000080); // global MIE off
+    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00001888, 32'h00001880); // global MIE off
     expect(int_pending, 1'b0, "MIE off: not pending");
-    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00000080, 32'h00000088); // MIE back on
+    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888); // MIE back on
     run(12'h304, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000000); // MTIE off
     expect(int_pending, 1'b0, "MTIE off: not pending");
     timer_irq = 0;

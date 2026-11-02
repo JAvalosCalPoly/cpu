@@ -55,9 +55,9 @@ else $display("DONE after %0d cycles", cycles);
         check(5,  32'h0000_AF00, "csrrc AFAF & ~00FF");
 // mstatus
         check(6,  32'h0000_0008, "csrsi mstatus MIE");
-        check(7,  32'h0000_0088, "mstatus all ones -> 88");
-        check(8,  32'h0000_0088, "csrrci old value");
-        check(9,  32'h0000_0080, "csrrci clears MIE");
+        check(7,  32'h0000_1888, "mstatus all ones -> 88");
+        check(8,  32'h0000_1888, "csrrci old value");
+        check(9,  32'h0000_1880, "csrrci clears MIE");
 // mepc
         check(10, 32'h0000_1000, "mepc 1003 -> 1000");
 // hazards

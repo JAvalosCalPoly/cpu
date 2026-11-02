@@ -59,14 +59,16 @@ wire stall;
 wire ex_busy;
 wire csr_valid;
 wire csr_int_pending; // MIE && MTIE && MTIP
+wire [1:0] priv_o; // current privilege mode
+wire mret_bad = ex_mem_mret && (priv_o != 2'b11);  // mret from U
 wire mem_csr_bad = ex_mem_is_csr && !csr_valid;
-wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak || mem_csr_bad; // illegal, ecall, ebreak or bad csr in MEM
+wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak || mem_csr_bad || mret_bad; // illegal, ecall, ebreak or bad csr in MEM
 // interrupt: real instr in MEM, not a store, no exception
 wire mem_int = csr_int_pending && ex_mem_valid && !ex_mem_mem_write && !mem_exc;
 wire [31:0] mem_cause = mem_int ? 32'h8000_0007 :                    // timer interrupt
-                        (ex_mem_illegal || mem_csr_bad) ? 32'd2 :     // illegal
+                        (ex_mem_illegal || mem_csr_bad || mret_bad) ? 32'd2 :     // illegal
                         ex_mem_ebreak ? 32'd3 :                       // breakpoint
-                        ex_mem_ecall ? 32'd11 : 32'd0;                // ecall from M
+                        ex_mem_ecall ? (32'd8 + priv_o) : 32'd0;                // ecall from M
 wire mem_trap = mem_exc || mem_int || ex_mem_mret;  // flush + redirect
 wire [31:0] csr_mtvec, csr_mepc;
 wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2]; // mul in EX
@@ -417,12 +419,13 @@ csr u_csr (
     .trap(mem_exc || mem_int), // save mepc/mcause
     .trap_pc(mem_pc),
     .trap_cause(mem_cause),
-    .mret(ex_mem_mret),
+    .mret(ex_mem_mret && !mret_bad),
     .mtvec_o(csr_mtvec),
     .mepc_o(csr_mepc),
     .valid(csr_valid),
     .timer_irq(timer_irq),
-    .int_pending(csr_int_pending)
+    .int_pending(csr_int_pending),
+    .priv_o(priv_o)
 );
 always @(posedge clk or posedge rst) begin
     if (rst) begin

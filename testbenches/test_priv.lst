@@ -1,0 +1,61 @@
+
+testbenches/test_priv.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 41000913     	addi	x18, x0, 0x410
+       8: 00000a13     	addi	x20, x0, 0x0
+       c: 00000297     	auipc	x5, 0x0
+      10: 04428293     	addi	x5, x5, 0x44
+      14: 30529073     	csrrw	x0, mtvec, x5
+      18: 005fa223     	sw	x5, 0x4(x31)
+      1c: 00000293     	addi	x5, x0, 0x0
+      20: 30029073     	csrrw	x0, mstatus, x5
+      24: 00000297     	auipc	x5, 0x0
+      28: 01028293     	addi	x5, x5, 0x10
+      2c: 34129073     	csrrw	x0, mepc, x5
+      30: 30200073     	mret
+
+00000034 <user>:
+      34: 00000073     	ecall
+      38: 05500313     	addi	x6, x0, 0x55
+      3c: 30002373     	csrrs	x6, mstatus, x0
+      40: 006fa023     	sw	x6, 0x0(x31)
+      44: 30501073     	csrrw	x0, mtvec, x0
+      48: 30200073     	mret
+      4c: 00000073     	ecall
+
+00000050 <handler>:
+      50: 34202af3     	csrrs	x21, mcause, x0
+      54: 30002b73     	csrrs	x22, mstatus, x0
+      58: 30502bf3     	csrrs	x23, mtvec, x0
+      5c: 01592023     	sw	x21, 0x0(x18)
+      60: 01692223     	sw	x22, 0x4(x18)
+      64: 01792423     	sw	x23, 0x8(x18)
+      68: 00c90913     	addi	x18, x18, 0xc
+      6c: 001a0a13     	addi	x20, x20, 0x1
+      70: 34102c73     	csrrs	x24, mepc, x0
+      74: 004c0c13     	addi	x24, x24, 0x4
+      78: 341c1073     	csrrw	x0, mepc, x24
+      7c: 00500c93     	addi	x25, x0, 0x5
+      80: 019a0463     	beq	x20, x25, 0x88 <done>
+      84: 30200073     	mret
+
+00000088 <done>:
+      88: d0e00d37     	lui	x26, 0xd0e00
+      8c: 00dd0d13     	addi	x26, x26, 0xd
+      90: 0fafa823     	sw	x26, 0xf0(x31)
+
+00000094 <spin>:
+      94: 0000006f     	jal	x0, 0x94 <spin>
+
+testbenches/test_priv.elf:	file format elf32-littleriscv
+00000000 T _start
+00000034 t user
+00000050 t handler
+00000088 t done
+00000094 t spin
+000000a0 B __bss_end
+000000a0 B __bss_start

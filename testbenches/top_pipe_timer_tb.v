@@ -58,7 +58,7 @@ else $display("DONE after %0d cycles", cycles);
         check(6,  32'd1275,      "loop sum 1..50");
         check(7,  32'h0000_0001, "handler ran once");
         check(8,  32'h8000_0007, "mcause = timer interrupt");
-        check(10, 32'h0000_0080, "mstatus in handler: MIE->MPIE");
+        check(10, 32'h0000_1880, "mstatus in handler: MIE->MPIE");
         check(11, 32'h0000_0080, "mip in handler: MTIP set");
         check(12, 32'h0000_0088, "mstatus after mret");
         check(13, 32'h0000_0000, "mip after mtimecmp moved");

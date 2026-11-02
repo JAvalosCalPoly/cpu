@@ -48,15 +48,15 @@ else $display("DONE after %0d cycles", cycles);
 // ecall
         check(0,  32'h0000_000B, "ecall mcause = 11");
         check(1,  `SIG(3),       "ecall mepc = its own pc");
-        check(2,  32'h0000_0080, "ecall mstatus: MIE->MPIE");
+        check(2,  32'h0000_1880, "ecall mstatus: MIE->MPIE");
 // ebreak
         check(4,  32'h0000_0003, "ebreak mcause = 3");
         check(5,  `SIG(7),       "ebreak mepc = its own pc");
-        check(6,  32'h0000_0080, "ebreak mstatus");
+        check(6,  32'h0000_1880, "ebreak mstatus");
 // illegal
         check(8,  32'h0000_0002, "illegal mcause = 2");
         check(9,  `SIG(11),      "illegal mepc = its own pc");
-        check(10, 32'h0000_0080, "illegal mstatus");
+        check(10, 32'h0000_1880, "illegal mstatus");
 // mret
         check(12, 32'h0000_0088, "mstatus after mret");
 // precise trap
