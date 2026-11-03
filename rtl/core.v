@@ -13,8 +13,11 @@ a mux picks what goes into rd: ALU, mem_rdata, or PC+4
 the next-pc logic picks the next PC value
 @POSEDGE the reg writes, memory writes, and pc update happen
 */
-module core#(parameter RESET_PC = 32'h00000000)(
-    input wire clk, rst,
+module core #(
+    parameter RESET_PC = 32'h00000000
+) (
+    input  wire        clk,
+    rst,
     // instruction memory
     input  wire [31:0] instr,
     output wire [31:0] instr_addr,
@@ -24,41 +27,41 @@ module core#(parameter RESET_PC = 32'h00000000)(
     output wire [31:0] mem_wdata,
     output wire        mem_write,
     output wire        mem_read,
-    output wire [2:0]  mem_funct3
+    output wire [ 2:0] mem_funct3
 );
     // decoder outputs
-    wire        reg_write;
-    wire [2:0]  imm_sel;
-    wire [1:0]  alu_a_sel;
-    wire        alu_b_sel;
-    wire [3:0]  alu_op;
-    wire [1:0]  wb_sel;
-    wire        branch;
-    wire        jal;
-    wire        jalr;
+    wire       reg_write;
+    wire [2:0] imm_sel;
+    wire [1:0] alu_a_sel;
+    wire       alu_b_sel;
+    wire [3:0] alu_op;
+    wire [1:0] wb_sel;
+    wire       branch;
+    wire       jal;
+    wire       jalr;
 
     // datapath values
-    wire [31:0] rs1_data, rs2_data; // register file outputs
-    wire [31:0] imm;    // from immgen
-    wire [31:0] alu_a, alu_b;   // ALU inputs (from muxes)
-    wire [31:0] alu_result; // from ALU
-    wire [31:0] wb_data;    // writeback mux for register file
+    wire [31:0] rs1_data, rs2_data;  // register file outputs
+    wire [31:0] imm;  // from immgen
+    wire [31:0] alu_a, alu_b;  // ALU inputs (from muxes)
+    wire [31:0] alu_result;  // from ALU
+    wire [31:0] wb_data;  // writeback mux for register file
     wire [31:0] muldiv_result;  // from multdiv
 
     // branch unit output
-    wire branch_cond; // branch condition is true
+    wire branch_cond;  // branch condition is true
 
     // PC
-    reg  [31:0] pc; 
-    wire [31:0] pc_next; // next-PC mux output
-    wire [31:0] pc_plus4; // pc + 4
+    reg [31:0] pc;
+    wire [31:0] pc_next;  // next-PC mux output
+    wire [31:0] pc_plus4;  // pc + 4
     wire [31:0] branch_target;  // pc + imm (branches, jal)
-    wire [31:0] jalr_target;    // (rs1 + imm) with bit 0 cleared
+    wire [31:0] jalr_target;  // (rs1 + imm) with bit 0 cleared
 
     // instruction field
     wire [4:0] rs1 = instr[19:15];
     wire [4:0] rs2 = instr[24:20];
-    wire [4:0] rd  = instr[11:7];
+    wire [4:0] rd = instr[11:7];
     wire [2:0] funct3 = instr[14:12];
 
     // PC register
@@ -79,7 +82,7 @@ module core#(parameter RESET_PC = 32'h00000000)(
     // pc targets
     assign pc_plus4 = pc + 32'd4;
     assign branch_target = pc + imm;
-    assign jalr_target = {alu_result[31:1], 1'b0}; // rs1 + imm, bit 0 cleared
+    assign jalr_target = {alu_result[31:1], 1'b0};  // rs1 + imm, bit 0 cleared
     // next PC mux
     assign pc_next = (jalr) ? jalr_target : (jal) ? branch_target : (branch && branch_cond) ? branch_target : pc_plus4;
     // data memory outputs
@@ -87,7 +90,9 @@ module core#(parameter RESET_PC = 32'h00000000)(
     assign mem_wdata = rs2_data;
     assign mem_funct3 = funct3;
 
-    reg32 #(.WRITE_THROUGH(0)) u_reg32(
+    reg32 #(
+        .WRITE_THROUGH(0)
+    ) u_reg32 (
         .clk(clk),
         .we(reg_write),
         .reset(rst),
