@@ -11,8 +11,10 @@ module csr (
     input  wire [31:0] trap_cause,   // to mcause
     output wire [31:0] trap_vec_o,
     input  wire        mret,         // mret in MEM
+    input  wire        sret,         // sret in MEM
     //output wire [31:0] mtvec_o,      // trap target
     output wire [31:0] mepc_o,       // mret target
+    output wire [31:0] sepc_o,       // sret target
     output wire        valid,        // is csr addr valid
     input  wire        timer_irq,    // when mtime >= mtimecmp
     output wire        int_pending,  // take that interrupt
@@ -50,6 +52,7 @@ module csr (
 
     // assign mtvec_o = {mtvec[31:2], 2'b00};  // direct mode
     assign mepc_o = {mepc, 2'b00};
+    assign sepc_o = {sepc, 2'b00};
     assign int_pending = (mstatus_mie || priv != 2'b11) && mie_mtie && timer_irq;
     assign valid = csr_exists && csr_ok && !ro_write;
     assign priv_o = priv;
@@ -128,6 +131,11 @@ module csr (
             mstatus_mpie <= 1'b1;  // set mpie to 1 on mret
             priv <= mstatus_mpp;
             mstatus_mpp <= 2'b00;
+        end else if (sret) begin
+            mstatus_sie <= mstatus_spie;  // restore sie from spie
+            mstatus_spie <= 1'b1;  // set spie to 1
+            priv <= {1'b0, mstatus_spp};
+            mstatus_spp <= 1'b0;
         end else if (we) begin
             case (addr)
                 MSTATUS: begin

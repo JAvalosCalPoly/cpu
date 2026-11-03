@@ -41,6 +41,7 @@ module core_pipe #(
         id_ex_reg_write;
     reg id_ex_is_csr;
     reg id_ex_illegal, id_ex_ecall, id_ex_ebreak, id_ex_mret;  // trap flags
+    reg id_ex_sret;  // sret flag
     reg id_ex_valid;
     //EX/MEM
     reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
@@ -52,6 +53,7 @@ module core_pipe #(
     reg [ 1:0] ex_mem_wb_sel;
     reg ex_mem_mem_read, ex_mem_mem_write, ex_mem_reg_write;
     reg ex_mem_illegal, ex_mem_ecall, ex_mem_ebreak, ex_mem_mret;  // trap flags
+    reg ex_mem_sret;
     reg ex_mem_valid;
 
     //MEM/WB
@@ -70,20 +72,23 @@ module core_pipe #(
     wire csr_valid;
     wire csr_int_pending;  // MIE && MTIE && MTIP
     wire [1:0] priv_o;  // current privilege mode
-    wire mret_bad = ex_mem_mret && (priv_o != 2'b11);  // mret from U
+    wire mret_bad = ex_mem_mret && (priv_o != 2'b11);  // mret from S or U
+    wire sret_bad = ex_mem_sret && (priv_o == 2'b00);  // sret from U
     wire mem_csr_bad = ex_mem_is_csr && !csr_valid;
-    wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak || mem_csr_bad || mret_bad; // illegal, ecall, ebreak or bad csr in MEM
+    wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak || mem_csr_bad
+                   || mret_bad || sret_bad;  // exception in MEM
     // interrupt: real instr in MEM, not a store, no exception
     wire mem_int = csr_int_pending && ex_mem_valid && !ex_mem_mem_write && !mem_exc;
     wire [31:0] mem_cause = mem_int ? 32'h8000_0007 :  // timer interrupt
-    (ex_mem_illegal || mem_csr_bad || mret_bad) ? 32'd2 :  // illegal
+    (ex_mem_illegal || mem_csr_bad || mret_bad || sret_bad) ? 32'd2 :  // illegal
     ex_mem_ebreak ? 32'd3 :  // breakpoint
-    ex_mem_ecall ? (32'd8 + priv_o) : 32'd0;  // ecall from M
-    wire mem_trap = mem_exc || mem_int || ex_mem_mret;  // flush + redirect
-    wire [31:0] csr_trap_vec, csr_mepc;  // was csr_mtvec
+    ex_mem_ecall ? (32'd8 + priv_o) : 32'd0;  // ecall: 8 U, 9 S, 11 M
+    wire mem_trap = mem_exc || mem_int || ex_mem_mret || ex_mem_sret;  // flush + redirect
+    wire [31:0] csr_trap_vec, csr_mepc, csr_sepc;  // trap, mret, sret targets
     wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2];  // mul in EX
 
-    wire [31:0] trap_target = (mem_exc || mem_int) ? csr_trap_vec : csr_mepc;  // trap/int or mret
+    wire [31:0] trap_target = (mem_exc || mem_int) ? csr_trap_vec :
+                              ex_mem_sret ? csr_sepc : csr_mepc;  // trap, sret, mret
     wire [31:0] fetch_addr = rst ? RESET_PC : mem_trap ? trap_target : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
 
     assign instr_addr  = fetch_addr;
@@ -131,7 +136,7 @@ module core_pipe #(
     wire [2:0] id_funct3, id_imm_sel;
     wire [1:0] id_alu_a_sel, id_wb_sel;
     wire id_alu_b_sel, id_reg_write, id_mem_read, id_mem_write;
-    wire id_branch, id_jal, id_jalr, id_is_csr, id_illegal, id_ecall, id_ebreak, id_mret;
+    wire id_branch, id_jal, id_jalr, id_is_csr, id_illegal, id_ecall, id_ebreak, id_mret, id_sret;
 
     wire [31:0] id_rs1_data, id_rs2_data, id_imm, wb_data;
 
@@ -158,6 +163,7 @@ module core_pipe #(
         .is_ecall(id_ecall),
         .is_ebreak(id_ebreak),
         .is_mret(id_mret),
+        .is_sret(id_sret),
         .illegal(id_illegal)
     );
 
@@ -206,6 +212,7 @@ module core_pipe #(
             id_ex_ebreak    <= 0;
             id_ex_mret      <= 0;
             id_ex_valid     <= 0;
+            id_ex_sret      <= 0;
         end else if (ex_redirect || stall || mem_trap) begin
             id_ex_valid     <= 0;  // bubble
             id_ex_reg_write <= 0;  // bubble
@@ -221,6 +228,7 @@ module core_pipe #(
             id_ex_ecall     <= 0;
             id_ex_ebreak    <= 0;
             id_ex_mret      <= 0;
+            id_ex_sret      <= 0;
         end else if (ex_busy) begin
             id_ex_pc        <= id_ex_pc;  // hold
             id_ex_pc_plus4  <= id_ex_pc_plus4;  // hold
@@ -247,6 +255,7 @@ module core_pipe #(
             id_ex_ebreak    <= id_ex_ebreak;  // hold
             id_ex_mret      <= id_ex_mret;  // hold
             id_ex_valid     <= id_ex_valid;  // hold
+            id_ex_sret      <= id_ex_sret;  // hold
         end else begin
             id_ex_pc        <= if_id_pc;
             id_ex_pc_plus4  <= if_id_pc_plus4;
@@ -273,6 +282,7 @@ module core_pipe #(
             id_ex_ebreak    <= id_ebreak;
             id_ex_mret      <= id_mret;
             id_ex_valid     <= if_id_valid;  // valid instruction moving into EX stage
+            id_ex_sret      <= id_sret;
         end
     end
 
@@ -367,6 +377,7 @@ module core_pipe #(
             ex_mem_ebreak         <= 0;
             ex_mem_mret           <= 0;
             ex_mem_valid          <= 0;
+            ex_mem_sret           <= 0;
         end else if (mem_trap || ex_busy) begin
             ex_mem_valid     <= 0;
             ex_mem_reg_write <= 0;
@@ -379,6 +390,7 @@ module core_pipe #(
             ex_mem_ecall     <= 0;
             ex_mem_ebreak    <= 0;
             ex_mem_mret      <= 0;
+            ex_mem_sret      <= 0;
         end else begin
             ex_mem_valid          <= id_ex_valid;  // valid instruction moving into MEM stage
             ex_mem_alu_result     <= ex_alu_result;
@@ -399,6 +411,7 @@ module core_pipe #(
             ex_mem_ecall          <= id_ex_ecall;
             ex_mem_ebreak         <= id_ex_ebreak;
             ex_mem_mret           <= id_ex_mret;
+            ex_mem_sret           <= id_ex_sret;
         end
     end
 
@@ -427,8 +440,10 @@ module core_pipe #(
         .trap_pc(mem_pc),
         .trap_cause(mem_cause),
         .mret(ex_mem_mret && !mret_bad),
+        .sret(ex_mem_sret && !sret_bad),
         .trap_vec_o(csr_trap_vec),  // u_csr uses trap_vec_o, not mtvec_o
         .mepc_o(csr_mepc),
+        .sepc_o(csr_sepc),
         .valid(csr_valid),
         .timer_irq(timer_irq),
         .int_pending(csr_int_pending),

@@ -13,6 +13,7 @@ module csr_tb;
     wire [1:0] priv_o;
     wire valid, int_pending;
     reg timer_irq;  // from timer
+    wire [31:0] sepc_o;  // sret target, driven by csr
 
     csr dut (
         .clk(clk),
@@ -26,8 +27,10 @@ module csr_tb;
         .trap_pc(trap_pc),
         .trap_cause(trap_cause),
         .mret(mret),
+        .sret(1'b0),
         .trap_vec_o(trap_vec_o),
         .mepc_o(mepc_o),
+        .sepc_o(sepc_o),
         .valid(valid),
         .timer_irq(timer_irq),
         .int_pending(int_pending),

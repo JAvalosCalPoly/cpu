@@ -17,6 +17,7 @@ module decoder (
     output wire        is_ecall,
     output wire        is_ebreak,
     output wire        is_mret,
+    output wire        is_sret,
     output reg         illegal
 );
 
@@ -61,6 +62,7 @@ module decoder (
     assign is_ecall = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h000);
     assign is_ebreak = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h001);
     assign is_mret = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h302);
+    assign is_sret = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h102);
     assign is_wfi = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h105);
     always @(*) begin
         reg_write = 1'b0;
@@ -165,8 +167,8 @@ module decoder (
             SYSTEM: begin
                 reg_write = is_csr;
                 imm_sel   = IMM_I;
-                if ((funct3 == 3'b100 || funct3 == 3'b000) && !is_ecall && !is_ebreak && !is_mret && !is_wfi) begin
-                    illegal = 1'b1;
+                if ((funct3 == 3'b100 || funct3 == 3'b000) && !is_ecall && !is_ebreak && !is_mret && !is_sret && !is_wfi) begin
+                    illegal = 1'b1;  // bad funct3
                 end
             end
             // default: unknown opcode
