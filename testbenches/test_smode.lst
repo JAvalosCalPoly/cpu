@@ -1,0 +1,89 @@
+
+testbenches/test_smode.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 00000197     	auipc	x3, 0x0
+       8: 0a818193     	addi	x3, x3, 0xa8
+       c: 30519073     	csrrw	x0, mtvec, x3
+      10: 00000197     	auipc	x3, 0x0
+      14: 07018193     	addi	x3, x3, 0x70
+      18: 10519073     	csrrw	x0, stvec, x3
+      1c: 10000193     	addi	x3, x0, 0x100
+      20: 30219073     	csrrw	x0, medeleg, x3
+      24: 00000197     	auipc	x3, 0x0
+      28: 05418193     	addi	x3, x3, 0x54
+      2c: 003fa223     	sw	x3, 0x4(x31)
+      30: 00100193     	addi	x3, x0, 0x1
+      34: 00b19193     	slli	x3, x3, 0xb
+      38: 30019073     	csrrw	x0, mstatus, x3
+      3c: 00000197     	auipc	x3, 0x0
+      40: 01018193     	addi	x3, x3, 0x10
+      44: 34119073     	csrrw	x0, mepc, x3
+      48: 30200073     	mret
+
+0000004c <s_code>:
+      4c: 000061b7     	lui	x3, 0x6
+      50: c5c18193     	addi	x3, x3, -0x3a4
+      54: 14019073     	csrrw	x0, sscratch, x3
+      58: 140021f3     	csrrs	x3, sscratch, x0
+      5c: 003fa023     	sw	x3, 0x0(x31)
+      60: 10000213     	addi	x4, x0, 0x100
+      64: 10023073     	csrrc	x0, sstatus, x4
+      68: 00000197     	auipc	x3, 0x0
+      6c: 01018193     	addi	x3, x3, 0x10
+      70: 14119073     	csrrw	x0, sepc, x3
+      74: 10200073     	sret
+
+00000078 <u_ecall>:
+      78: 00000073     	ecall
+
+0000007c <spin_u>:
+      7c: 0000006f     	jal	x0, 0x7c <spin_u>
+
+00000080 <s_handler>:
+      80: 14202af3     	csrrs	x21, scause, x0
+      84: 14102b73     	csrrs	x22, sepc, x0
+      88: 10002bf3     	csrrs	x23, sstatus, x0
+      8c: 015fa423     	sw	x21, 0x8(x31)
+      90: 016fa623     	sw	x22, 0xc(x31)
+      94: 017fa823     	sw	x23, 0x10(x31)
+      98: 00000197     	auipc	x3, 0x0
+      9c: 00c18193     	addi	x3, x3, 0xc
+      a0: 003faa23     	sw	x3, 0x14(x31)
+
+000000a4 <s_ecall>:
+      a4: 00000073     	ecall
+
+000000a8 <spin_s>:
+      a8: 0000006f     	jal	x0, 0xa8 <spin_s>
+
+000000ac <m_handler>:
+      ac: 34202af3     	csrrs	x21, mcause, x0
+      b0: 34102b73     	csrrs	x22, mepc, x0
+      b4: 30002bf3     	csrrs	x23, mstatus, x0
+      b8: 015fac23     	sw	x21, 0x18(x31)
+      bc: 016fae23     	sw	x22, 0x1c(x31)
+      c0: 037fa023     	sw	x23, 0x20(x31)
+      c4: d0e00d37     	lui	x26, 0xd0e00
+      c8: 00dd0d13     	addi	x26, x26, 0xd
+      cc: 0fafa823     	sw	x26, 0xf0(x31)
+
+000000d0 <done>:
+      d0: 0000006f     	jal	x0, 0xd0 <done>
+
+testbenches/test_smode.elf:	file format elf32-littleriscv
+00000000 T _start
+0000004c t s_code
+00000078 t u_code
+00000078 t u_ecall
+0000007c t spin_u
+00000080 t s_handler
+000000a4 t s_ecall
+000000a8 t spin_s
+000000ac t m_handler
+000000d0 t done
+000000e0 B __bss_end
+000000e0 B __bss_start
