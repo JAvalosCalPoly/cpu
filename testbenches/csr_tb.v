@@ -84,10 +84,10 @@ initial begin
     pass = 0; fail = 0;
     #12 rst = 0; // off the clock edge
     // op: 01 W, 10 S, 11 C
-    // mstatus: bits 12:11 (MPP), 7 (MPIE), 3 (MIE)
-    run(12'h300, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00001888); // W all ones, MPP=11
-    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00001888, 32'h00001880); // C bit 3
-    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888); // S bit 3
+    // mstatus: 12:11 MPP, 8 SPP, 7 MPIE, 5 SPIE, 3 MIE, 1 SIE
+    run(12'h300, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h000019AA); // W all ones: MPP=11, S bits set
+    run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h000019AA, 32'h000019A2); // C bit 3
+    run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h000019A2, 32'h000019AA); // S bit 3
     // mscratch
     run(12'h340, 2'b01, 32'hDEADBEEF, 1'b1, 32'h00000000, 32'hDEADBEEF); // W
     run(12'h340, 2'b10, 32'h00000010, 1'b1, 32'hDEADBEEF, 32'hDEADBEFF); // S bit 4
@@ -105,7 +105,7 @@ initial begin
     // trap / mret
     run(12'h305, 2'b01, 32'h00000101, 1'b1, 32'h00000100, 32'h00000101); // mtvec, mode bit set
     expect(mtvec_o, 32'h00000100, "mtvec_o drops mode");
-    run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h00001888, 32'h00000008); // MIE=1, MPIE=0, MPP=00
+    run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h000019AA, 32'h00000008); // MIE=1, all else 0
     do_trap(32'h00000040, 32'd11);                                        // ecall at 0x40
     addr = 12'h341; #1; expect(dst, 32'h00000040, "mepc after trap");
     expect(mepc_o, 32'h00000040, "mepc_o after trap");
@@ -133,6 +133,17 @@ initial begin
     expect(int_pending, 1'b0, "MIE off: not pending");
     run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888); // MIE back on
     run(12'h304, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000000); // MTIE off
+    // S csrs
+    run(12'h100, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00000122); // sstatus: S bits only
+    addr = 12'h300; #1; expect(dst, 32'h000019AA, "sstatus write kept M bits");
+    run(12'h100, 2'b01, 32'h00000000, 1'b1, 32'h00000122, 32'h00000000); // clear S bits
+    addr = 12'h300; #1; expect(dst, 32'h00001888, "mstatus after sstatus clear");
+    run(12'h105, 2'b01, 32'h00000200, 1'b1, 32'h00000000, 32'h00000200); // stvec
+    run(12'h140, 2'b01, 32'hCAFEF00D, 1'b1, 32'h00000000, 32'hCAFEF00D); // sscratch
+    run(12'h141, 2'b01, 32'h00000123, 1'b1, 32'h00000000, 32'h00000120); // sepc, low bits drop
+    run(12'h142, 2'b01, 32'h00000008, 1'b1, 32'h00000000, 32'h00000008); // scause
+    run(12'h143, 2'b01, 32'hDEAD0000, 1'b1, 32'h00000000, 32'hDEAD0000); // stval
+    run(12'h302, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'hFFFFF7FF); // medeleg: bit 11 stuck 0
     expect(int_pending, 1'b0, "MTIE off: not pending");
     timer_irq = 0;
     addr = 12'h344; #1; expect(dst, 32'h00000000, "mip follows irq");

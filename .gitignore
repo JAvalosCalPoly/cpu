@@ -39,3 +39,4 @@
 /documentation/*.bbl
 scripts/run_tests.fish
 scripts/link.ld
+.vscode
