@@ -1,0 +1,76 @@
+
+testbenches/test_sint.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 00000297     	auipc	x5, 0x0
+       8: 08028293     	addi	x5, x5, 0x80
+       c: 30529073     	csrrw	x0, mtvec, x5
+      10: 00000297     	auipc	x5, 0x0
+      14: 09c28293     	addi	x5, x5, 0x9c
+      18: 10529073     	csrrw	x0, stvec, x5
+      1c: 02000293     	addi	x5, x0, 0x20
+      20: 30329073     	csrrw	x0, mideleg, x5
+      24: 08000313     	addi	x6, x0, 0x80
+      28: 02000393     	addi	x7, x0, 0x20
+      2c: 007362b3     	or	x5, x6, x7
+      30: 30429073     	csrrw	x0, mie, x5
+      34: 02004337     	lui	x6, 0x2004
+      38: 0200c3b7     	lui	x7, 0x200c
+      3c: ff838393     	addi	x7, x7, -0x8
+      40: 0003ae03     	lw	x28, 0x0(x7)
+      44: 0043ae83     	lw	x29, 0x4(x7)
+      48: 100e0e13     	addi	x28, x28, 0x100
+      4c: fff00f13     	addi	x30, x0, -0x1
+      50: 01e32223     	sw	x30, 0x4(x6)
+      54: 01c32023     	sw	x28, 0x0(x6)
+      58: 01d32223     	sw	x29, 0x4(x6)
+      5c: 000012b7     	lui	x5, 0x1
+      60: 88228293     	addi	x5, x5, -0x77e
+      64: 30029073     	csrrw	x0, mstatus, x5
+      68: 00000297     	auipc	x5, 0x0
+      6c: 01028293     	addi	x5, x5, 0x10
+      70: 34129073     	csrrw	x0, mepc, x5
+      74: 30200073     	mret
+
+00000078 <s_code>:
+      78: 00000013     	addi	x0, x0, 0x0
+      7c: 00000013     	addi	x0, x0, 0x0
+      80: ff9ff06f     	jal	x0, 0x78 <s_code>
+
+00000084 <m_handler>:
+      84: 342022f3     	csrrs	x5, mcause, x0
+      88: 005fa023     	sw	x5, 0x0(x31)
+      8c: 300022f3     	csrrs	x5, mstatus, x0
+      90: 005fa223     	sw	x5, 0x4(x31)
+      94: 02004337     	lui	x6, 0x2004
+      98: fff00f13     	addi	x30, x0, -0x1
+      9c: 01e32223     	sw	x30, 0x4(x6)
+      a0: 02000293     	addi	x5, x0, 0x20
+      a4: 3442a073     	csrrs	x0, mip, x5
+      a8: 30200073     	mret
+
+000000ac <s_handler>:
+      ac: 142022f3     	csrrs	x5, scause, x0
+      b0: 005fa423     	sw	x5, 0x8(x31)
+      b4: 100022f3     	csrrs	x5, sstatus, x0
+      b8: 005fa623     	sw	x5, 0xc(x31)
+      bc: 144022f3     	csrrs	x5, sip, x0
+      c0: 005fa823     	sw	x5, 0x10(x31)
+      c4: d0e002b7     	lui	x5, 0xd0e00
+      c8: 00d28293     	addi	x5, x5, 0xd
+      cc: 0e5fa823     	sw	x5, 0xf0(x31)
+
+000000d0 <done>:
+      d0: 0000006f     	jal	x0, 0xd0 <done>
+
+testbenches/test_sint.elf:	file format elf32-littleriscv
+00000000 T _start
+00000078 t s_code
+00000084 t m_handler
+000000ac t s_handler
+000000d0 t done
+000000e0 B __bss_end
+000000e0 B __bss_start

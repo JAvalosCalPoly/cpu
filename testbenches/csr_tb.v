@@ -167,7 +167,7 @@ module csr_tb;
         // mie / mip / int_pending   (last trap left mstatus = 0x1880)
         run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888);  // MIE on
         run(12'h304, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
-            32'h00000080);  // mie: only MTIE sticks
+            32'h000000A0);  // mie: only MTIE sticks
         check(int_pending, 1'b0, "no irq: int_pending 0");
         timer_irq = 1;
         addr = 12'h344;
@@ -179,7 +179,8 @@ module csr_tb;
         run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h00001888, 32'h00001880);  // global MIE off
         check(int_pending, 1'b0, "MIE off: not pending");
         run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888);  // MIE back on
-        run(12'h304, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000000);  // MTIE off
+        run(12'h304, 2'b11, 32'h00000080, 1'b1, 32'h000000A0, 32'h00000020);  // MTIE off
+        run(12'h304, 2'b11, 32'h00000020, 1'b1, 32'h00000020, 32'h00000000);  // clear MIE
         check(int_pending, 1'b0, "MTIE off: not pending");
         timer_irq = 0;
         addr = 12'h344;

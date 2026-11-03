@@ -24,7 +24,7 @@
 *.hw/
 *.ip_user_files/
 *.sim/
-
+/scripts
 # latex
 /documentation/*.tex
 /documentation/*.aux

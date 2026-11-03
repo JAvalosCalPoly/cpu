@@ -71,6 +71,7 @@ module core_pipe #(
     wire ex_busy;
     wire csr_valid;
     wire csr_int_pending;  // MIE && MTIE && MTIP
+    wire [31:0] csr_int_cause;  // M timer -> 0x80000007, S timer -> 0x80000005
     wire [1:0] priv_o;  // current privilege mode
     wire mret_bad = ex_mem_mret && (priv_o != 2'b11);  // mret from S or U
     wire sret_bad = ex_mem_sret && (priv_o == 2'b00);  // sret from U
@@ -79,7 +80,7 @@ module core_pipe #(
                    || mret_bad || sret_bad;  // exception in MEM
     // interrupt: real instr in MEM, not a store, no exception
     wire mem_int = csr_int_pending && ex_mem_valid && !ex_mem_mem_write && !mem_exc;
-    wire [31:0] mem_cause = mem_int ? 32'h8000_0007 :  // timer interrupt
+    wire [31:0] mem_cause = mem_int ? csr_int_cause :  // timer interrupt
     (ex_mem_illegal || mem_csr_bad || mret_bad || sret_bad) ? 32'd2 :  // illegal
     ex_mem_ebreak ? 32'd3 :  // breakpoint
     ex_mem_ecall ? (32'd8 + priv_o) : 32'd0;  // ecall: 8 U, 9 S, 11 M
@@ -447,7 +448,8 @@ module core_pipe #(
         .valid(csr_valid),
         .timer_irq(timer_irq),
         .int_pending(csr_int_pending),
-        .priv_o(priv_o)
+        .priv_o(priv_o),
+        .int_cause(csr_int_cause)
     );
     always @(posedge clk or posedge rst) begin
         if (rst) begin

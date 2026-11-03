@@ -18,14 +18,15 @@ module csr (
     output wire        valid,        // is csr addr valid
     input  wire        timer_irq,    // when mtime >= mtimecmp
     output wire        int_pending,  // take that interrupt
-    output wire [ 1:0] priv_o        // priveledge mode
+    output wire [ 1:0] priv_o,        // priveledge mode
+    output wire [31:0] int_cause // which interrupt
 );
 
     localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342,
     MIE = 12'h304, MIP = 12'h344;
 
     localparam SSTATUS = 12'h100, STVEC = 12'h105, SSCRATCH = 12'h140, SEPC = 12'h141, SCAUSE = 12'h142,
-    STVAL = 12'h143, MEDELEG = 12'h302;
+    STVAL = 12'h143, MEDELEG = 12'h302, MIDELEG = 12'h303, SIE = 12'h104, SIP = 12'h144;
 
     reg mie_mtie;  // mie bit 7: timer enable
     reg [31:0] mtvec, mscratch, mcause;
@@ -36,6 +37,7 @@ module csr (
 
     // S
     reg mstatus_sie, mstatus_spie, mstatus_spp;
+    reg mie_stie, mip_stip, mideleg_sti;
     reg [31:0] stvec, sscratch, scause, stval, medeleg;
     reg [31:2] sepc;  // sepc[1:0] always 0
 
@@ -47,13 +49,22 @@ module csr (
     wire csr_exists = (addr == MSTATUS) || (addr == MTVEC) || (addr == MSCRATCH) ||
                   (addr == MEPC) || (addr == MCAUSE) || (addr == MIE) || (addr == MIP) ||
                   (addr == SSTATUS) || (addr == STVEC) || (addr == SSCRATCH) || (addr == SEPC)
-                  || (addr == SCAUSE) || (addr == STVAL) || (addr == MEDELEG);
-    wire to_s = (priv != 2'b11) && medeleg[trap_cause[4:0]] && !trap_cause[31];
+                  || (addr == SCAUSE) || (addr == STVAL) || (addr == MEDELEG) ||
+                  (addr == MIDELEG) || (addr == SIE) || (addr == SIP);
+    wire to_s = trap_cause[31] ? (trap_cause[4:0] == 5'b00101) : (priv != 2'b11) && (medeleg[trap_cause[4:0]]);
+    wire m_on = (priv != 2'b11) || mstatus_mie;
+    wire s_on = (priv == 2'b00) || (priv == 2'b01 && mstatus_sie);
+    wire mti = timer_irq && mie_mtie;
+    wire sti = mip_stip && mie_stie && mideleg_sti;
+    wire take_m = mti && m_on;
+    wire take_s = sti && s_on && !take_m; // m wins if both pending
 
     // assign mtvec_o = {mtvec[31:2], 2'b00};  // direct mode
     assign mepc_o = {mepc, 2'b00};
     assign sepc_o = {sepc, 2'b00};
-    assign int_pending = (mstatus_mie || priv != 2'b11) && mie_mtie && timer_irq;
+    assign int_pending = take_m || take_s;
+    assign int_cause = take_m ? 32'h8000_0007 :
+                        take_s ? 32'h8000_0005 : 32'b0;
     assign valid = csr_exists && csr_ok && !ro_write;
     assign priv_o = priv;
     assign trap_vec_o = to_s ? {stvec[31:2], 2'b00} : {mtvec[31:2], 2'b00};
@@ -79,8 +90,8 @@ module csr (
             MSCRATCH: dst = mscratch;
             MEPC:     dst = {mepc, 2'b0};
             MCAUSE:   dst = mcause;
-            MIE:      dst = {24'b0, mie_mtie, 7'b0};  // MTIE at bit 7
-            MIP:      dst = {24'b0, timer_irq, 7'b0};  // MTIP at bit 7
+            MIE:      dst = {24'b0, mie_mtie, 1'b0, mie_stie, 5'b0};  // MTIE at bit 7, STIE 5
+            MIP:      dst = {24'b0, timer_irq, 1'b0, mip_stip, 5'b0};  // MTIP at bit 7, STIP 5
             SSTATUS:  dst = mstatus_val & 32'h0000_0122;  // SIE, SPIE, SPP only
             STVEC:    dst = stvec;
             SSCRATCH: dst = sscratch;
@@ -88,6 +99,9 @@ module csr (
             SCAUSE:   dst = scause;
             STVAL:    dst = stval;
             MEDELEG:  dst = medeleg;
+            MIDELEG:  dst = {26'b0, mideleg_sti, 5'b0};  // MIDELEG STI at bit 5
+            SIE:      dst = {26'b0, mie_stie & mideleg_sti, 5'b0};  // SIE STI at bit 5
+            SIP:      dst = {26'b0, mip_stip & mideleg_sti, 5'b0};  // SIP STI at bit 5
             default:  dst = 32'b0;
         endcase
     end
@@ -112,6 +126,9 @@ module csr (
             scause <= 32'b0;
             stval <= 32'b0;
             medeleg <= 32'b0;
+            mideleg_sti <= 1'b0;
+            mie_stie <= 1'b0;
+            mip_stip <= 1'b0;
         end else if (trap && to_s) begin
             sepc <= trap_pc[31:2];
             scause <= trap_cause;
@@ -147,8 +164,9 @@ module csr (
                 MSCRATCH: mscratch <= wdata;
                 MEPC: mepc <= wdata[31:2];
                 MCAUSE: mcause <= wdata;
-                MIE: mie_mtie <= wdata[7];
-                MIP: ;  // read-only
+                MIE: {mie_mtie, mie_stie} <= {wdata[7], wdata[5]};
+                MIP: mip_stip <= wdata[5];
+                MIDELEG: mideleg_sti <= wdata[5];
                 SSTATUS:
                 {mstatus_spp, mstatus_spie, mstatus_sie} <= {
                     wdata[8], wdata[5], wdata[1]
@@ -158,6 +176,8 @@ module csr (
                 SEPC: sepc <= wdata[31:2];
                 SCAUSE: scause <= wdata;
                 STVAL: stval <= wdata;
+                SIE: if (mideleg_sti) mie_stie <= wdata[5];  // STI only if delegated
+                SIP: ;
                 MEDELEG: medeleg <= wdata & ~32'h0000_0800;  // ecall from M can't delegate
                 default: ;
             endcase
