@@ -9,7 +9,8 @@ module csr_tb;
     reg [1:0] op;
     reg trap, mret;  // trap inputs
     reg [31:0] trap_pc, trap_cause;
-    wire [31:0] mtvec_o, mepc_o;
+    wire [31:0] trap_vec_o, mepc_o;
+    wire [1:0] priv_o;
     wire valid, int_pending;
     reg timer_irq;  // from timer
 
@@ -25,11 +26,12 @@ module csr_tb;
         .trap_pc(trap_pc),
         .trap_cause(trap_cause),
         .mret(mret),
-        .mtvec_o(mtvec_o),
+        .trap_vec_o(trap_vec_o),
         .mepc_o(mepc_o),
         .valid(valid),
         .timer_irq(timer_irq),
-        .int_pending(int_pending)
+        .int_pending(int_pending),
+        .priv_o(priv_o)
     );
 
     always #5 clk = ~clk;  // 10 ns clock
@@ -128,7 +130,7 @@ module csr_tb;
         run(12'h7C0, 2'b10, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h00000000);  // S
         // trap / mret
         run(12'h305, 2'b01, 32'h00000101, 1'b1, 32'h00000100, 32'h00000101);  // mtvec, mode bit set
-        check(mtvec_o, 32'h00000100, "mtvec_o drops mode");
+        check(trap_vec_o, 32'h00000100, "trap_vec_o drops mode");
         run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h000019AA, 32'h00000008);  // MIE=1, all else 0
         do_trap(32'h00000040, 32'd11);  // ecall at 0x40
         addr = 12'h341;
@@ -175,6 +177,14 @@ module csr_tb;
         check(int_pending, 1'b0, "MIE off: not pending");
         run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h00001880, 32'h00001888);  // MIE back on
         run(12'h304, 2'b11, 32'h00000080, 1'b1, 32'h00000080, 32'h00000000);  // MTIE off
+        check(int_pending, 1'b0, "MTIE off: not pending");
+        timer_irq = 0;
+        addr = 12'h344;
+        #1;
+        check(dst, 32'h00000000, "mip follows irq");
+        addr = 12'h7C0;
+        #1;
+        check(valid, 1'b0, "0x7C0 not valid");
         // S csrs
         run(12'h100, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
             32'h00000122);  // sstatus: S bits only
@@ -192,14 +202,6 @@ module csr_tb;
         run(12'h143, 2'b01, 32'hDEAD0000, 1'b1, 32'h00000000, 32'hDEAD0000);  // stval
         run(12'h302, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
             32'hFFFFF7FF);  // medeleg: bit 11 stuck 0
-        check(int_pending, 1'b0, "MTIE off: not pending");
-        timer_irq = 0;
-        addr = 12'h344;
-        #1;
-        check(dst, 32'h00000000, "mip follows irq");
-        addr = 12'h7C0;
-        #1;
-        check(valid, 1'b0, "0x7C0 not valid");
         $display("CSR testbench finished: %0d passed / %0d failed", pass, fail);
         $finish;
     end

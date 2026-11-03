@@ -9,8 +9,9 @@ module csr (
     input  wire        trap,         // exception in MEM
     input  wire [31:0] trap_pc,      // to mepc
     input  wire [31:0] trap_cause,   // to mcause
+    output wire [31:0] trap_vec_o,
     input  wire        mret,         // mret in MEM
-    output wire [31:0] mtvec_o,      // trap target
+    //output wire [31:0] mtvec_o,      // trap target
     output wire [31:0] mepc_o,       // mret target
     output wire        valid,        // is csr addr valid
     input  wire        timer_irq,    // when mtime >= mtimecmp
@@ -45,12 +46,14 @@ module csr (
                   (addr == MEPC) || (addr == MCAUSE) || (addr == MIE) || (addr == MIP) ||
                   (addr == SSTATUS) || (addr == STVEC) || (addr == SSCRATCH) || (addr == SEPC)
                   || (addr == SCAUSE) || (addr == STVAL) || (addr == MEDELEG);
+    wire to_s = (priv != 2'b11) && medeleg[trap_cause[4:0]] && !trap_cause[31];
 
-    assign mtvec_o = {mtvec[31:2], 2'b00};  // direct mode
+    // assign mtvec_o = {mtvec[31:2], 2'b00};  // direct mode
     assign mepc_o = {mepc, 2'b00};
     assign int_pending = (mstatus_mie || priv != 2'b11) && mie_mtie && timer_irq;
     assign valid = csr_exists && csr_ok && !ro_write;
     assign priv_o = priv;
+    assign trap_vec_o = to_s ? {stvec[31:2], 2'b00} : {mtvec[31:2], 2'b00};
     wire [31:0] mstatus_val = {
         19'b0,
         mstatus_mpp,
@@ -106,6 +109,13 @@ module csr (
             scause <= 32'b0;
             stval <= 32'b0;
             medeleg <= 32'b0;
+        end else if (trap && to_s) begin
+            sepc <= trap_pc[31:2];
+            scause <= trap_cause;
+            mstatus_spie <= mstatus_sie;
+            mstatus_sie <= 1'b0;  // disable interrupts on trap
+            mstatus_spp <= priv[0];
+            priv <= 2'b01;
         end else if (trap) begin
             mepc <= trap_pc[31:2];
             mcause <= trap_cause;

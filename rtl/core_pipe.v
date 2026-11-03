@@ -80,10 +80,10 @@ module core_pipe #(
     ex_mem_ebreak ? 32'd3 :  // breakpoint
     ex_mem_ecall ? (32'd8 + priv_o) : 32'd0;  // ecall from M
     wire mem_trap = mem_exc || mem_int || ex_mem_mret;  // flush + redirect
-    wire [31:0] csr_mtvec, csr_mepc;
+    wire [31:0] csr_trap_vec, csr_mepc;  // was csr_mtvec
     wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2];  // mul in EX
 
-    wire [31:0] trap_target = (mem_exc || mem_int) ? csr_mtvec : csr_mepc;  // trap/int or mret
+    wire [31:0] trap_target = (mem_exc || mem_int) ? csr_trap_vec : csr_mepc;  // trap/int or mret
     wire [31:0] fetch_addr = rst ? RESET_PC : mem_trap ? trap_target : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
 
     assign instr_addr  = fetch_addr;
@@ -427,7 +427,7 @@ module core_pipe #(
         .trap_pc(mem_pc),
         .trap_cause(mem_cause),
         .mret(ex_mem_mret && !mret_bad),
-        .mtvec_o(csr_mtvec),
+        .trap_vec_o(csr_trap_vec),  // u_csr uses trap_vec_o, not mtvec_o
         .mepc_o(csr_mepc),
         .valid(csr_valid),
         .timer_irq(timer_irq),
