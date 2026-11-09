@@ -1,0 +1,70 @@
+
+testbenches/test_tval.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 40000913     	addi	x18, x0, 0x400
+       8: 00000297     	auipc	x5, 0x0
+       c: 06428293     	addi	x5, x5, 0x64
+      10: 30529073     	csrrw	x0, mtvec, x5
+      14: 00000297     	auipc	x5, 0x0
+      18: 07c28293     	addi	x5, x5, 0x7c
+      1c: 10529073     	csrrw	x0, stvec, x5
+      20: 00000297     	auipc	x5, 0x0
+      24: 01428293     	addi	x5, x5, 0x14
+      28: 005fac23     	sw	x5, 0x18(x31)
+      2c: ff ff ff ff  	.word	0xffffffff
+      30: 7c002373     	csrrs	x6, 0x7c0, x0
+
+00000034 <break>:
+      34: 00100073     	ebreak
+      38: 00490913     	addi	x18, x18, 0x4
+      3c: 00000073     	ecall
+      40: 00400293     	addi	x5, x0, 0x4
+      44: 30229073     	csrrw	x0, medeleg, x5
+      48: 000012b7     	lui	x5, 0x1
+      4c: 88228293     	addi	x5, x5, -0x77e
+      50: 30029073     	csrrw	x0, mstatus, x5
+      54: 00000297     	auipc	x5, 0x0
+      58: 01028293     	addi	x5, x5, 0x10
+      5c: 34129073     	csrrw	x0, mepc, x5
+      60: 30200073     	mret
+
+00000064 <s_code>:
+      64: ff ff ff ff  	.word	0xffffffff
+      68: ffdff06f     	jal	x0, 0x64 <s_code>
+
+0000006c <m_handler>:
+      6c: 342022f3     	csrrs	x5, mcause, x0
+      70: 00592023     	sw	x5, 0x0(x18)
+      74: 343022f3     	csrrs	x5, mtval, x0
+      78: 00592223     	sw	x5, 0x4(x18)
+      7c: 00890913     	addi	x18, x18, 0x8
+      80: 341022f3     	csrrs	x5, mepc, x0
+      84: 00428293     	addi	x5, x5, 0x4
+      88: 34129073     	csrrw	x0, mepc, x5
+      8c: 30200073     	mret
+
+00000090 <s_handler>:
+      90: 142022f3     	csrrs	x5, scause, x0
+      94: 025fa223     	sw	x5, 0x24(x31)
+      98: 143022f3     	csrrs	x5, stval, x0
+      9c: 025fa423     	sw	x5, 0x28(x31)
+      a0: d0e002b7     	lui	x5, 0xd0e00
+      a4: 00d28293     	addi	x5, x5, 0xd
+      a8: 0e5fa823     	sw	x5, 0xf0(x31)
+
+000000ac <done>:
+      ac: 0000006f     	jal	x0, 0xac <done>
+
+testbenches/test_tval.elf:	file format elf32-littleriscv
+00000000 T _start
+00000034 t break
+00000064 t s_code
+0000006c t m_handler
+00000090 t s_handler
+000000ac t done
+000000b0 B __bss_end
+000000b0 B __bss_start

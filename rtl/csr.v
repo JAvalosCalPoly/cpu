@@ -10,6 +10,7 @@ module csr (
     input  wire [31:0] trap_pc,      // to mepc
     input  wire [31:0] trap_cause,   // to mcause
     output wire [31:0] trap_vec_o,
+    input  wire [31:0] trap_val,     // to mtval stval
     input  wire        mret,         // mret in MEM
     input  wire        sret,         // sret in MEM
     //output wire [31:0] mtvec_o,      // trap target
@@ -18,12 +19,12 @@ module csr (
     output wire        valid,        // is csr addr valid
     input  wire        timer_irq,    // when mtime >= mtimecmp
     output wire        int_pending,  // take that interrupt
-    output wire [ 1:0] priv_o,        // priveledge mode
-    output wire [31:0] int_cause // which interrupt
+    output wire [ 1:0] priv_o,       // priveledge mode
+    output wire [31:0] int_cause     // which interrupt
 );
 
     localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342,
-    MIE = 12'h304, MIP = 12'h344;
+    MIE = 12'h304, MIP = 12'h344, MTVAL = 12'h343;
 
     localparam SSTATUS = 12'h100, STVEC = 12'h105, SSCRATCH = 12'h140, SEPC = 12'h141, SCAUSE = 12'h142,
     STVAL = 12'h143, MEDELEG = 12'h302, MIDELEG = 12'h303, SIE = 12'h104, SIP = 12'h144;
@@ -32,8 +33,9 @@ module csr (
     reg [31:0] mtvec, mscratch, mcause;
     reg [31:2] mepc;  // mepc[1:0] always 0
     reg mstatus_mie, mstatus_mpie;
-    reg [1:0] mstatus_mpp;
-    reg [1:0] priv;
+    reg [ 1:0] mstatus_mpp;
+    reg [ 1:0] priv;
+    reg [31:0] mtval;
 
     // S
     reg mstatus_sie, mstatus_spie, mstatus_spp;
@@ -50,21 +52,20 @@ module csr (
                   (addr == MEPC) || (addr == MCAUSE) || (addr == MIE) || (addr == MIP) ||
                   (addr == SSTATUS) || (addr == STVEC) || (addr == SSCRATCH) || (addr == SEPC)
                   || (addr == SCAUSE) || (addr == STVAL) || (addr == MEDELEG) ||
-                  (addr == MIDELEG) || (addr == SIE) || (addr == SIP);
+                  (addr == MIDELEG) || (addr == SIE) || (addr == SIP) || (addr == MTVAL);
     wire to_s = trap_cause[31] ? (trap_cause[4:0] == 5'b00101) : (priv != 2'b11) && (medeleg[trap_cause[4:0]]);
     wire m_on = (priv != 2'b11) || mstatus_mie;
     wire s_on = (priv == 2'b00) || (priv == 2'b01 && mstatus_sie);
     wire mti = timer_irq && mie_mtie;
     wire sti = mip_stip && mie_stie && mideleg_sti;
     wire take_m = mti && m_on;
-    wire take_s = sti && s_on && !take_m; // m wins if both pending
+    wire take_s = sti && s_on && !take_m;  // m wins if both pending
 
     // assign mtvec_o = {mtvec[31:2], 2'b00};  // direct mode
     assign mepc_o = {mepc, 2'b00};
     assign sepc_o = {sepc, 2'b00};
     assign int_pending = take_m || take_s;
-    assign int_cause = take_m ? 32'h8000_0007 :
-                        take_s ? 32'h8000_0005 : 32'b0;
+    assign int_cause = take_m ? 32'h8000_0007 : take_s ? 32'h8000_0005 : 32'b0;
     assign valid = csr_exists && csr_ok && !ro_write;
     assign priv_o = priv;
     assign trap_vec_o = to_s ? {stvec[31:2], 2'b00} : {mtvec[31:2], 2'b00};
@@ -98,6 +99,7 @@ module csr (
             SEPC:     dst = {sepc, 2'b0};
             SCAUSE:   dst = scause;
             STVAL:    dst = stval;
+            MTVAL:    dst = mtval;
             MEDELEG:  dst = medeleg;
             MIDELEG:  dst = {26'b0, mideleg_sti, 5'b0};  // MIDELEG STI at bit 5
             SIE:      dst = {26'b0, mie_stie & mideleg_sti, 5'b0};  // SIE STI at bit 5
@@ -129,6 +131,7 @@ module csr (
             mideleg_sti <= 1'b0;
             mie_stie <= 1'b0;
             mip_stip <= 1'b0;
+            mtval <= 32'b0;
         end else if (trap && to_s) begin
             sepc <= trap_pc[31:2];
             scause <= trap_cause;
@@ -136,6 +139,7 @@ module csr (
             mstatus_sie <= 1'b0;  // disable interrupts on trap
             mstatus_spp <= priv[0];
             priv <= 2'b01;
+            stval <= trap_val;
         end else if (trap) begin
             mepc <= trap_pc[31:2];
             mcause <= trap_cause;
@@ -143,6 +147,7 @@ module csr (
             mstatus_mie <= 1'b0;  // disable interrupts on trap
             mstatus_mpp <= priv;
             priv <= 2'b11;
+            mtval <= trap_val;
         end else if (mret) begin
             mstatus_mie <= mstatus_mpie;  // restore mie from mpie
             mstatus_mpie <= 1'b1;  // set mpie to 1 on mret
@@ -176,6 +181,7 @@ module csr (
                 SEPC: sepc <= wdata[31:2];
                 SCAUSE: scause <= wdata;
                 STVAL: stval <= wdata;
+                MTVAL: mtval <= wdata;
                 SIE: if (mideleg_sti) mie_stie <= wdata[5];  // STI only if delegated
                 SIP: ;
                 MEDELEG: medeleg <= wdata & ~32'h0000_0800;  // ecall from M can't delegate

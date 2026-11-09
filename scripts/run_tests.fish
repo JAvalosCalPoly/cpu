@@ -6,7 +6,7 @@ mkdir -p build
 set fails 0
 
 # programs: assemble .S -> .hex
-for s in test_asm test_csr test_trap test_timer test_uart test_priv test_smode test_sint
+for s in test_asm test_csr test_trap test_timer test_uart test_priv test_smode test_sint test_tval
     if not scripts/asm.sh testbenches/$s.S > /dev/null
         echo "ASM FAIL: $s"
         set fails (math $fails + 1)
@@ -36,7 +36,8 @@ set tests \
     echo        top_pipe_echo_tb \
     priv        top_pipe_priv_tb \
     smode       top_pipe_smode_tb \
-    sint        top_pipe_sint_tb
+    sint        top_pipe_sint_tb \
+    tval        top_pipe_tval_tb
 
 for i in (seq 1 2 (count $tests))
     set name $tests[$i]

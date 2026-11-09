@@ -26,6 +26,7 @@ module csr_tb;
         .trap(trap),
         .trap_pc(trap_pc),
         .trap_cause(trap_cause),
+        .trap_val(32'd0),  // to mtval
         .mret(mret),
         .sret(1'b0),
         .trap_vec_o(trap_vec_o),
@@ -204,6 +205,7 @@ module csr_tb;
         run(12'h141, 2'b01, 32'h00000123, 1'b1, 32'h00000000, 32'h00000120);  // sepc, low bits drop
         run(12'h142, 2'b01, 32'h00000008, 1'b1, 32'h00000000, 32'h00000008);  // scause
         run(12'h143, 2'b01, 32'hDEAD0000, 1'b1, 32'h00000000, 32'hDEAD0000);  // stval
+        run(12'h343, 2'b01, 32'hBEEF0000, 1'b1, 32'h00000000, 32'hBEEF0000);  // mtval
         run(12'h302, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
             32'hFFFFF7FF);  // medeleg: bit 11 stuck 0
         $display("CSR testbench finished: %0d passed / %0d failed", pass, fail);
