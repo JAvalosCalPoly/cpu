@@ -8,6 +8,7 @@ SECTIONS {
     *(.rodata*) *(.data*) *(.sdata*)
   }
   .bss (NOLOAD) : {                     /* zeroed by crt0 */
+    . = ALIGN(4);
     __bss_start = .;
     *(.sbss*) *(.bss*) *(COMMON)
     . = ALIGN(4);

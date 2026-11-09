@@ -13,7 +13,7 @@ module board_top_arty (
     always @(posedge clk) rst_sync <= {rst_sync[0], ~ck_rst};
     wire rst = rst_sync[1];
 
-    top_pipe #(.ADDR_BITS(12), .INIT_FILE("echo.hex"),
+    top_pipe #(.ADDR_BITS(12), .INIT_FILE("blackjack.hex"),
                .CLK_HZ(12_000_000), .BAUD(115_200)) u_top (
         .clk(clk), .rst(rst),
         .store(), .store_data(),
