@@ -24,6 +24,7 @@ module core_pipe #(
     //IF/ID
     reg [31:0] if_id_pc, if_id_instr, if_id_pc_plus4;
     reg if_id_valid;
+    reg if_id_ipf;  // instruction page fault
 
     //ID/EX
     reg [31:0] id_ex_pc, id_ex_pc_plus4, id_ex_rs1_data, id_ex_rs2_data, id_ex_imm;
@@ -45,6 +46,7 @@ module core_pipe #(
     reg id_ex_sret;  // sret flag
     reg id_ex_valid;
     reg [31:0] id_ex_instr;
+    reg id_ex_ipf;
     //EX/MEM
     reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
     reg ex_mem_is_csr, ex_mem_csr_we;
@@ -61,6 +63,7 @@ module core_pipe #(
     reg ex_mem_sfence;
     reg ex_mem_pf;  // load/store page fault
     reg [31:0] ex_mem_pa;  // physical addr
+    reg ex_mem_ipf;
 
     //MEM/WB
     reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
@@ -101,24 +104,28 @@ module core_pipe #(
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
+            if_id_ipf      <= 0;
         end else if (mem_flush) begin
             pc             <= flush_target;
             if_id_pc       <= 0;
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
+            if_id_ipf      <= 0;
         end else if (ex_redirect) begin
             pc             <= pc_next;
             if_id_pc       <= 0;
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
+            if_id_ipf      <= 0;
         end else if (!(stall || ex_hold)) begin  // stall: hold
             pc             <= pc_next;
             if_id_pc       <= pc;
             if_id_instr    <= instr;
             if_id_pc_plus4 <= if_pc_plus4;
             if_id_valid    <= 1;
+            if_id_ipf      <= 1'b0;
         end
     end
 
@@ -217,6 +224,7 @@ module core_pipe #(
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
             id_ex_sfence    <= 0;
+            id_ex_ipf       <= 0;
         end else if (mem_flush || (!ex_hold && (ex_redirect || stall))) begin
             id_ex_valid     <= 0;  // bubble
             id_ex_reg_write <= 0;  // bubble
@@ -235,6 +243,7 @@ module core_pipe #(
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
             id_ex_sfence    <= 0;
+            id_ex_ipf       <= 0;
         end else if (ex_hold) begin  // hold, keep forwarded operands
             id_ex_rs1_data <= ex_rs1;
             id_ex_rs2_data <= ex_rs2;
@@ -267,6 +276,7 @@ module core_pipe #(
             id_ex_sret      <= id_sret;
             id_ex_instr     <= if_id_instr;
             id_ex_sfence    <= id_sfence;
+            id_ex_ipf       <= if_id_ipf;
         end
     end
 
@@ -405,6 +415,7 @@ module core_pipe #(
             ex_mem_sfence         <= 0;
             ex_mem_pf             <= 0;
             ex_mem_pa             <= 0;
+            ex_mem_ipf            <= 0;
         end else if (mem_flush || ex_hold) begin
             ex_mem_valid     <= 0;
             ex_mem_reg_write <= 0;
@@ -421,6 +432,7 @@ module core_pipe #(
             ex_mem_instr     <= 0;
             ex_mem_sfence    <= 0;
             ex_mem_pf        <= 0;
+            ex_mem_ipf       <= 0;
         end else begin
             ex_mem_valid          <= id_ex_valid;  // valid instruction moving into MEM stage
             ex_mem_alu_result     <= ex_alu_result;
@@ -446,6 +458,7 @@ module core_pipe #(
             ex_mem_sfence         <= id_ex_sfence;
             ex_mem_pf             <= mmu_fault;
             ex_mem_pa             <= mmu_pa;
+            ex_mem_ipf            <= id_ex_ipf;
         end
     end
 
@@ -484,7 +497,8 @@ module core_pipe #(
         .csr_we(ex_mem_csr_we),
         .csr_addr(ex_mem_csr_addr),
         .refetch(refetch),
-        .tlb_flush(tlb_flush)
+        .tlb_flush(tlb_flush),
+        .ipf(ex_mem_ipf)
     );
     assign mem_addr = ptw_busy ? ptw_addr : mmu_pa;  // walker owns port
     assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this

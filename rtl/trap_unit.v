@@ -24,6 +24,7 @@ module trap_unit (
     input  wire [31:0] va,           // load/store address
     input  wire        csr_we,       // csr write in MEM
     input  wire [11:0] csr_addr,
+    input  wire        ipf,
     output wire        take_trap,    // save epc/cause
     output wire        mem_trap,     // flush + redirect
     output wire        mret_ok,
@@ -39,7 +40,7 @@ module trap_unit (
     wire csr_bad = is_csr && !csr_valid;
     wire sfence_bad = sfence && (priv == 2'b00);  // sfence from U
     wire bad = illegal || csr_bad || mret_bad || sret_bad || sfence_bad;  // illegal instr
-    wire exc = bad || ecall || ebreak || pf;
+    wire exc = bad || ecall || ebreak || pf || ipf;
     // interrupt: real instr, not a store, no exception
     wire irq = int_pending && valid && !mem_write && !exc;
     wire xlate_csr = csr_we && (csr_addr == 12'h180 || csr_addr == 12'h300 || csr_addr == 12'h100);  // satp, mstatus, sstatus
@@ -48,10 +49,10 @@ module trap_unit (
     assign mem_trap = take_trap || mret || sret;
     assign mret_ok = mret && !mret_bad;
     assign sret_ok = sret && !sret_bad;
-    assign cause = irq ? int_cause : bad ? 32'd2 :
+    assign cause = irq ? int_cause : ipf ? 32'd12 : bad ? 32'd2 :
                pf ? (pf_store ? 32'd15 : 32'd13) :  // store/load page fault
         ebreak ? 32'd3 : ecall ? (32'd8 + priv) : 32'd0;
-    assign tval = irq ? 32'd0 : bad ? instr : pf ? va : ebreak ? pc : 32'd0;
+    assign tval = irq ? 32'd0 : ipf ? pc : bad ? instr : pf ? va : ebreak ? pc : 32'd0;
     assign trap_target = take_trap ? trap_vec : sret ? sepc : mepc;
     assign tlb_flush = sfence && !take_trap;
     assign refetch = !take_trap && (xlate_csr || sfence);
