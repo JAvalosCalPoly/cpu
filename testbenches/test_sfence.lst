@@ -1,0 +1,69 @@
+
+testbenches/test_sfence.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 00000197     	auipc	x3, 0x0
+       8: 07018193     	addi	x3, x3, 0x70
+       c: 30519073     	csrrw	x0, mtvec, x3
+      10: 000fa423     	sw	x0, 0x8(x31)
+      14: 12000073     	sfence.vma	x0, x0
+      18: 01100193     	addi	x3, x0, 0x11
+      1c: 003fa023     	sw	x3, 0x0(x31)
+      20: 00100193     	addi	x3, x0, 0x1
+      24: 00b19193     	slli	x3, x3, 0xb
+      28: 30019073     	csrrw	x0, mstatus, x3
+      2c: 00000197     	auipc	x3, 0x0
+      30: 01018193     	addi	x3, x3, 0x10
+      34: 34119073     	csrrw	x0, mepc, x3
+      38: 30200073     	mret
+
+0000003c <s_code>:
+      3c: 12b50073     	sfence.vma	x10, x11
+      40: 02200193     	addi	x3, x0, 0x22
+      44: 003fa223     	sw	x3, 0x4(x31)
+      48: 10000213     	addi	x4, x0, 0x100
+      4c: 10023073     	csrrc	x0, sstatus, x4
+      50: 00000197     	auipc	x3, 0x0
+      54: 01018193     	addi	x3, x3, 0x10
+      58: 14119073     	csrrw	x0, sepc, x3
+      5c: 10200073     	sret
+
+00000060 <u_sfence>:
+      60: 12000073     	sfence.vma	x0, x0
+      64: 000011b7     	lui	x3, 0x1
+      68: bad18193     	addi	x3, x3, -0x453
+      6c: 003fa423     	sw	x3, 0x8(x31)
+
+00000070 <spin_u>:
+      70: 0000006f     	jal	x0, 0x70 <spin_u>
+
+00000074 <m_handler>:
+      74: 34202af3     	csrrs	x21, mcause, x0
+      78: 34102b73     	csrrs	x22, mepc, x0
+      7c: 34302bf3     	csrrs	x23, mtval, x0
+      80: 015fa623     	sw	x21, 0xc(x31)
+      84: 016fa823     	sw	x22, 0x10(x31)
+      88: 017faa23     	sw	x23, 0x14(x31)
+      8c: 00000197     	auipc	x3, 0x0
+      90: fd418193     	addi	x3, x3, -0x2c
+      94: 003fac23     	sw	x3, 0x18(x31)
+      98: d0e00d37     	lui	x26, 0xd0e00
+      9c: 00dd0d13     	addi	x26, x26, 0xd
+      a0: 0fafa823     	sw	x26, 0xf0(x31)
+
+000000a4 <done>:
+      a4: 0000006f     	jal	x0, 0xa4 <done>
+
+testbenches/test_sfence.elf:	file format elf32-littleriscv
+00000000 T _start
+0000003c t s_code
+00000060 t u_code
+00000060 t u_sfence
+00000070 t spin_u
+00000074 t m_handler
+000000a4 t done
+000000b0 B __bss_end
+000000b0 B __bss_start

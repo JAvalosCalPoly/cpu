@@ -373,6 +373,12 @@ module core_pipe #(
     mmu u_mmu (
         .clk(clk),
         .rst(rst),
+        .i_req(1'b0),  // fetch side in 6c
+        .i_va(32'b0),
+        .i_kill(1'b0),
+        .i_pa(),
+        .i_ok(),
+        .i_fault(),
         .req(id_ex_valid && (id_ex_mem_read || id_ex_mem_write)),
         .store(id_ex_mem_write),
         .va(ex_addr),

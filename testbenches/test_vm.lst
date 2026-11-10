@@ -1,0 +1,118 @@
+
+testbenches/test_vm.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 48000f13     	addi	x30, x0, 0x480
+       8: 00000297     	auipc	x5, 0x0
+       c: 13828293     	addi	x5, x5, 0x138
+      10: 30529073     	csrrw	x0, mtvec, x5
+      14: 000012b7     	lui	x5, 0x1
+      18: 0000b337     	lui	x6, 0xb
+      1c: aaa30313     	addi	x6, x6, -0x556
+      20: 0062a023     	sw	x6, 0x0(x5)
+      24: 000022b7     	lui	x5, 0x2
+      28: 00001337     	lui	x6, 0x1
+      2c: c0130313     	addi	x6, x6, -0x3ff
+      30: 0062a023     	sw	x6, 0x0(x5)
+      34: 0c700313     	addi	x6, x0, 0xc7
+      38: 00500393     	addi	x7, x0, 0x5
+      3c: 00b39393     	slli	x7, x7, 0xb
+      40: 0063a023     	sw	x6, 0x0(x7)
+      44: 000032b7     	lui	x5, 0x3
+      48: 0c700313     	addi	x6, x0, 0xc7
+      4c: 0062a023     	sw	x6, 0x0(x5)
+      50: 4c700313     	addi	x6, x0, 0x4c7
+      54: 0062a223     	sw	x6, 0x4(x5)
+      58: 00001337     	lui	x6, 0x1
+      5c: 8c730313     	addi	x6, x6, -0x739
+      60: 0062a423     	sw	x6, 0x8(x5)
+      64: 00001337     	lui	x6, 0x1
+      68: cc730313     	addi	x6, x6, -0x339
+      6c: 0062a623     	sw	x6, 0xc(x5)
+      70: 4c700313     	addi	x6, x0, 0x4c7
+      74: 0062aa23     	sw	x6, 0x14(x5)
+      78: 44300313     	addi	x6, x0, 0x443
+      7c: 0062ac23     	sw	x6, 0x18(x5)
+      80: 0002ae23     	sw	x0, 0x1c(x5)
+      84: 4d700313     	addi	x6, x0, 0x4d7
+      88: 0262a023     	sw	x6, 0x20(x5)
+      8c: 800002b7     	lui	x5, 0x80000
+      90: 00228293     	addi	x5, x5, 0x2
+      94: 18029073     	csrrw	x0, satp, x5
+      98: 00100293     	addi	x5, x0, 0x1
+      9c: 00b29293     	slli	x5, x5, 0xb
+      a0: 30029073     	csrrw	x0, mstatus, x5
+      a4: 00000297     	auipc	x5, 0x0
+      a8: 01028293     	addi	x5, x5, 0x10
+      ac: 34129073     	csrrw	x0, mepc, x5
+      b0: 30200073     	mret
+
+000000b4 <s_code>:
+      b4: 00005537     	lui	x10, 0x5
+      b8: 00052583     	lw	x11, 0x0(x10)
+      bc: 00bfa023     	sw	x11, 0x0(x31)
+      c0: 00005537     	lui	x10, 0x5
+      c4: 0000c5b7     	lui	x11, 0xc
+      c8: bbb58593     	addi	x11, x11, -0x445
+      cc: 00b52023     	sw	x11, 0x0(x10)
+      d0: 00006537     	lui	x10, 0x6
+      d4: 00052583     	lw	x11, 0x0(x10)
+      d8: 00bfa223     	sw	x11, 0x4(x31)
+      dc: 80001537     	lui	x10, 0x80001
+      e0: 00052583     	lw	x11, 0x0(x10)
+      e4: 00bfa423     	sw	x11, 0x8(x31)
+      e8: 00006537     	lui	x10, 0x6
+      ec: 00b52023     	sw	x11, 0x0(x10)
+      f0: 00007537     	lui	x10, 0x7
+      f4: 00052583     	lw	x11, 0x0(x10)
+      f8: 00008537     	lui	x10, 0x8
+      fc: 00052583     	lw	x11, 0x0(x10)
+     100: 00040637     	lui	x12, 0x40
+     104: 10062073     	csrrs	x0, sstatus, x12
+     108: 00052583     	lw	x11, 0x0(x10)
+     10c: 00bfa623     	sw	x11, 0xc(x31)
+     110: 00003537     	lui	x10, 0x3
+     114: 01450513     	addi	x10, x10, 0x14
+     118: 000015b7     	lui	x11, 0x1
+     11c: cc758593     	addi	x11, x11, -0x339
+     120: 00b52023     	sw	x11, 0x0(x10)
+     124: 00005537     	lui	x10, 0x5
+     128: 00052583     	lw	x11, 0x0(x10)
+     12c: 00bfa823     	sw	x11, 0x10(x31)
+     130: 12000073     	sfence.vma	x0, x0
+     134: 00052583     	lw	x11, 0x0(x10)
+     138: 00bfaa23     	sw	x11, 0x14(x31)
+     13c: 00000073     	ecall
+
+00000140 <m_handler>:
+     140: 342022f3     	csrrs	x5, mcause, x0
+     144: 00900313     	addi	x6, x0, 0x9
+     148: 02628263     	beq	x5, x6, 0x16c <finish>
+     14c: 005f2023     	sw	x5, 0x0(x30)
+     150: 34302373     	csrrs	x6, mtval, x0
+     154: 006f2223     	sw	x6, 0x4(x30)
+     158: 008f0f13     	addi	x30, x30, 0x8
+     15c: 341022f3     	csrrs	x5, mepc, x0
+     160: 00428293     	addi	x5, x5, 0x4
+     164: 34129073     	csrrw	x0, mepc, x5
+     168: 30200073     	mret
+
+0000016c <finish>:
+     16c: d0e00d37     	lui	x26, 0xd0e00
+     170: 00dd0d13     	addi	x26, x26, 0xd
+     174: 0fafa823     	sw	x26, 0xf0(x31)
+
+00000178 <done>:
+     178: 0000006f     	jal	x0, 0x178 <done>
+
+testbenches/test_vm.elf:	file format elf32-littleriscv
+00000000 T _start
+000000b4 t s_code
+00000140 t m_handler
+0000016c t finish
+00000178 t done
+00000180 B __bss_end
+00000180 B __bss_start
