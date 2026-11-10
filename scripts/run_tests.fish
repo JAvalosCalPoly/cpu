@@ -37,7 +37,8 @@ set tests \
     priv        top_pipe_priv_tb \
     smode       top_pipe_smode_tb \
     sint        top_pipe_sint_tb \
-    tval        top_pipe_tval_tb
+    tval        top_pipe_tval_tb \
+    decoder     decoder_tb
 
 for i in (seq 1 2 (count $tests))
     set name $tests[$i]

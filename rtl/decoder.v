@@ -18,7 +18,8 @@ module decoder (
     output wire        is_ebreak,
     output wire        is_mret,
     output wire        is_sret,
-    output reg         illegal
+    output reg         illegal,
+    output wire        is_sfence
 );
 
     // opcodes (instr[6:0])
@@ -58,6 +59,7 @@ module decoder (
 
     // for csr
     assign is_csr = (opcode == SYSTEM) && (funct3[1:0] != 2'b00);
+    assign is_sfence = (opcode == SYSTEM) && (funct3 == 3'b000) && (funct7 == 7'b0001001) && (instr[11:7] == 5'd0);
     // for ecall, ebreak, mret
     assign is_ecall = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h000);
     assign is_ebreak = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h001);
@@ -167,7 +169,7 @@ module decoder (
             SYSTEM: begin
                 reg_write = is_csr;
                 imm_sel   = IMM_I;
-                if ((funct3 == 3'b100 || funct3 == 3'b000) && !is_ecall && !is_ebreak && !is_mret && !is_sret && !is_wfi) begin
+                if ((funct3 == 3'b100 || funct3 == 3'b000) && !is_ecall && !is_ebreak && !is_mret && !is_sret && !is_wfi && !is_sfence) begin
                     illegal = 1'b1;  // bad funct3
                 end
             end

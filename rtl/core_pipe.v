@@ -39,11 +39,12 @@ module core_pipe #(
         id_ex_mem_read,
         id_ex_mem_write,
         id_ex_reg_write;
+    reg id_ex_sfence;
     reg id_ex_is_csr;
     reg id_ex_illegal, id_ex_ecall, id_ex_ebreak, id_ex_mret;  // trap flags
     reg id_ex_sret;  // sret flag
     reg id_ex_valid;
-    reg [31:0] id_ex_instr; 
+    reg [31:0] id_ex_instr;
     //EX/MEM
     reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
     reg ex_mem_is_csr, ex_mem_csr_we;
@@ -57,6 +58,7 @@ module core_pipe #(
     reg ex_mem_sret;
     reg ex_mem_valid;
     reg [31:0] ex_mem_instr;
+    reg ex_mem_sfence;
 
     //MEM/WB
     reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
@@ -73,7 +75,7 @@ module core_pipe #(
     wire csr_valid, csr_int_pending;
     wire [31:0] csr_int_cause;  // M timer -> 0x80000007, S timer -> 0x80000005
     wire [31:0] csr_trap_vec, csr_mepc, csr_sepc;  // trap, mret, sret targets
-    wire [ 1:0] priv_o;  // current privilege mode
+    wire [1:0] priv_o;  // current privilege mode
     wire take_trap, mem_trap, mret_ok, sret_ok;
     wire [31:0] mem_cause, mem_tval, trap_target, fetch_addr;
 
@@ -117,6 +119,7 @@ module core_pipe #(
     wire [1:0] id_alu_a_sel, id_wb_sel;
     wire id_alu_b_sel, id_reg_write, id_mem_read, id_mem_write;
     wire id_branch, id_jal, id_jalr, id_is_csr, id_illegal, id_ecall, id_ebreak, id_mret, id_sret;
+    wire id_sfence;
 
     wire [31:0] id_rs1_data, id_rs2_data, id_imm, wb_data;
 
@@ -152,7 +155,8 @@ module core_pipe #(
         .is_ebreak(id_ebreak),
         .is_mret(id_mret),
         .is_sret(id_sret),
-        .illegal(id_illegal)
+        .illegal(id_illegal),
+        .is_sfence(id_sfence)
     );
 
     immgen u_immgen (
@@ -202,6 +206,7 @@ module core_pipe #(
             id_ex_valid     <= 0;
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
+            id_ex_sfence    <= 0;
         end else if (ex_redirect || stall || mem_trap) begin
             id_ex_valid     <= 0;  // bubble
             id_ex_reg_write <= 0;  // bubble
@@ -219,6 +224,7 @@ module core_pipe #(
             id_ex_mret      <= 0;
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
+            id_ex_sfence    <= 0;
         end else if (!ex_busy) begin  // ex_busy: hold
             id_ex_pc        <= if_id_pc;
             id_ex_pc_plus4  <= if_id_pc_plus4;
@@ -247,6 +253,7 @@ module core_pipe #(
             id_ex_valid     <= if_id_valid;  // valid instruction moving into EX stage
             id_ex_sret      <= id_sret;
             id_ex_instr     <= if_id_instr;
+            id_ex_sfence    <= id_sfence;
         end
     end
 
@@ -362,6 +369,7 @@ module core_pipe #(
             ex_mem_valid          <= 0;
             ex_mem_sret           <= 0;
             ex_mem_instr          <= 0;
+            ex_mem_sfence         <= 0;
         end else if (mem_trap || ex_busy) begin
             ex_mem_valid     <= 0;
             ex_mem_reg_write <= 0;
@@ -376,6 +384,7 @@ module core_pipe #(
             ex_mem_mret      <= 0;
             ex_mem_sret      <= 0;
             ex_mem_instr     <= 0;
+            ex_mem_sfence    <= 0;
         end else begin
             ex_mem_valid          <= id_ex_valid;  // valid instruction moving into MEM stage
             ex_mem_alu_result     <= ex_alu_result;
@@ -398,6 +407,7 @@ module core_pipe #(
             ex_mem_mret           <= id_ex_mret;
             ex_mem_sret           <= id_ex_sret;
             ex_mem_instr          <= id_ex_instr;
+            ex_mem_sfence         <= id_ex_sfence;
         end
     end
 
@@ -428,12 +438,13 @@ module core_pipe #(
         .sret_ok(sret_ok),
         .cause(mem_cause),
         .tval(mem_tval),
-        .trap_target(trap_target)
+        .trap_target(trap_target),
+        .sfence(ex_mem_sfence)
     );
-    assign mem_addr = ex_addr;  // ex mem alu result gets this
-    assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
-    assign mem_write = id_ex_mem_write && !mem_trap;  // no store on trap
-    assign mem_read = id_ex_mem_read;
+    assign mem_addr   = ex_addr;  // ex mem alu result gets this
+    assign mem_wdata  = ex_rs2;  // ex mem rs2 data gets this
+    assign mem_write  = id_ex_mem_write && !mem_trap;  // no store on trap
+    assign mem_read   = id_ex_mem_read;
     assign mem_funct3 = id_ex_funct3;
     wb_mux u_wb_mux (
         .sel(mem_wb_wb_sel),

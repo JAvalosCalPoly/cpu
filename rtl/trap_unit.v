@@ -18,6 +18,7 @@ module trap_unit (
     input  wire [31:0] trap_vec,
     input  wire [31:0] mepc,
     input  wire [31:0] sepc,
+    input  wire        sfence,
     output wire        take_trap,    // save epc/cause
     output wire        mem_trap,     // flush + redirect
     output wire        mret_ok,
@@ -29,7 +30,8 @@ module trap_unit (
     wire mret_bad = mret && (priv != 2'b11);  // mret from S or U
     wire sret_bad = sret && (priv == 2'b00);  // sret from U
     wire csr_bad = is_csr && !csr_valid;
-    wire bad = illegal || csr_bad || mret_bad || sret_bad;  // illegal instr
+    wire sfence_bad = sfence && (priv == 2'b00); // sfence from U
+    wire bad = illegal || csr_bad || mret_bad || sret_bad || sfence_bad;  // illegal instr
     wire exc = bad || ecall || ebreak;
     // interrupt: real instr, not a store, no exception
     wire irq = int_pending && valid && !mem_write && !exc;
