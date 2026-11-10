@@ -59,6 +59,8 @@ module core_pipe #(
     reg ex_mem_valid;
     reg [31:0] ex_mem_instr;
     reg ex_mem_sfence;
+    reg ex_mem_pf;  // load/store page fault
+    reg [31:0] ex_mem_pa;  // physical addr
 
     //MEM/WB
     reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
@@ -72,17 +74,25 @@ module core_pipe #(
 
     wire ex_redirect;  // declared early for iverilog
     wire stall, ex_busy;
+    wire mmu_stall, mmu_fault, ptw_busy;  // dtlb miss / page fault
+    wire ex_hold = ex_busy || mmu_stall;  // hold IF, ID, EX
+    wire [31:0] ex_rs1, ex_rs2;  // forwarded operands
+    wire [31:0] csr_satp;
+    wire csr_sum, csr_mxr;
     wire csr_valid, csr_int_pending;
     wire [31:0] csr_int_cause;  // M timer -> 0x80000007, S timer -> 0x80000005
     wire [31:0] csr_trap_vec, csr_mepc, csr_sepc;  // trap, mret, sret targets
     wire [1:0] priv_o;  // current privilege mode
     wire take_trap, mem_trap, mret_ok, sret_ok;
     wire [31:0] mem_cause, mem_tval, trap_target, fetch_addr;
+    wire refetch, tlb_flush;
+    wire mem_flush = mem_trap || refetch;  // flush younger instrs
+    wire [31:0] flush_target = mem_trap ? trap_target : ex_mem_pc_plus4;  // trap or pc+4
 
     assign instr_addr  = fetch_addr;
     assign if_pc_plus4 = pc + 4;
     assign load_commit = ex_mem_mem_read && !mem_trap;
-    assign commit_addr = ex_mem_alu_result;
+    assign commit_addr = ex_mem_pa;  // physical, for mmio
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -91,8 +101,8 @@ module core_pipe #(
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
-        end else if (mem_trap) begin
-            pc             <= trap_target;
+        end else if (mem_flush) begin
+            pc             <= flush_target;
             if_id_pc       <= 0;
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
@@ -103,7 +113,7 @@ module core_pipe #(
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
-        end else if (!(stall || ex_busy)) begin  // stall: hold
+        end else if (!(stall || ex_hold)) begin  // stall: hold
             pc             <= pc_next;
             if_id_pc       <= pc;
             if_id_instr    <= instr;
@@ -207,7 +217,7 @@ module core_pipe #(
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
             id_ex_sfence    <= 0;
-        end else if (ex_redirect || stall || mem_trap) begin
+        end else if (mem_flush || (!ex_hold && (ex_redirect || stall))) begin
             id_ex_valid     <= 0;  // bubble
             id_ex_reg_write <= 0;  // bubble
             id_ex_mem_write <= 0;
@@ -225,7 +235,10 @@ module core_pipe #(
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
             id_ex_sfence    <= 0;
-        end else if (!ex_busy) begin  // ex_busy: hold
+        end else if (ex_hold) begin  // hold, keep forwarded operands
+            id_ex_rs1_data <= ex_rs1;
+            id_ex_rs2_data <= ex_rs2;
+        end else begin
             id_ex_pc        <= if_id_pc;
             id_ex_pc_plus4  <= if_id_pc_plus4;
             id_ex_rs1_data  <= id_rs1_data;
@@ -265,7 +278,6 @@ module core_pipe #(
     wire ex_is_div = (id_ex_wb_sel == 2'b11) && id_ex_funct3[2]; // funct3[2] = 1 for div/rem, 0 for mul
     wire div_start = ex_is_div && !div_busy && !div_done;
     wire [31:0] div_result;
-    wire [31:0] ex_rs1, ex_rs2;
     forward_unit u_forward (
         .id_ex_rs1(id_ex_rs1),
         .id_ex_rs2(id_ex_rs2),
@@ -299,8 +311,8 @@ module core_pipe #(
         .RESET_PC(RESET_PC)
     ) u_next_pc (
         .rst(rst),
-        .mem_trap(mem_trap),
-        .hold(stall || ex_busy),
+        .mem_trap(mem_flush),
+        .hold(stall || ex_hold),
         .branch(id_ex_branch),
         .branch_taken(ex_branch_taken),
         .jal(id_ex_jal),
@@ -309,7 +321,7 @@ module core_pipe #(
         .pc_plus4(if_pc_plus4),
         .branch_target(ex_branch_target),
         .jalr_target(ex_jalr_target),
-        .trap_target(trap_target),
+        .trap_target(flush_target),
         .redirect(ex_redirect),
         .pc_next(pc_next),
         .fetch_addr(fetch_addr)
@@ -335,7 +347,7 @@ module core_pipe #(
         .a(ex_rs1),
         .b(ex_rs2),
         .op(id_ex_funct3[1:0]),
-        .flush(mem_trap),
+        .flush(mem_flush),
         .busy(div_busy),
         .done(div_done),
         .result(div_result)
@@ -345,6 +357,27 @@ module core_pipe #(
         .b(ex_rs2),
         .funct3(id_ex_funct3),
         .branch_taken(ex_branch_taken)
+    );
+    // data mmu
+    wire [31:0] mmu_pa, ptw_addr;
+    mmu u_mmu (
+        .clk(clk),
+        .rst(rst),
+        .req(id_ex_valid && (id_ex_mem_read || id_ex_mem_write)),
+        .store(id_ex_mem_write),
+        .va(ex_addr),
+        .priv(priv_o),
+        .satp(csr_satp),
+        .sum(csr_sum),
+        .mxr(csr_mxr),
+        .tlb_flush(tlb_flush),
+        .kill(mem_flush),
+        .pa(mmu_pa),
+        .stall(mmu_stall),
+        .fault(mmu_fault),
+        .ptw_busy(ptw_busy),
+        .ptw_addr(ptw_addr),
+        .mem_rdata(mem_rdata)
     );
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -370,7 +403,9 @@ module core_pipe #(
             ex_mem_sret           <= 0;
             ex_mem_instr          <= 0;
             ex_mem_sfence         <= 0;
-        end else if (mem_trap || ex_busy) begin
+            ex_mem_pf             <= 0;
+            ex_mem_pa             <= 0;
+        end else if (mem_flush || ex_hold) begin
             ex_mem_valid     <= 0;
             ex_mem_reg_write <= 0;
             ex_mem_mem_write <= 0;
@@ -385,6 +420,7 @@ module core_pipe #(
             ex_mem_sret      <= 0;
             ex_mem_instr     <= 0;
             ex_mem_sfence    <= 0;
+            ex_mem_pf        <= 0;
         end else begin
             ex_mem_valid          <= id_ex_valid;  // valid instruction moving into MEM stage
             ex_mem_alu_result     <= ex_alu_result;
@@ -408,6 +444,8 @@ module core_pipe #(
             ex_mem_sret           <= id_ex_sret;
             ex_mem_instr          <= id_ex_instr;
             ex_mem_sfence         <= id_ex_sfence;
+            ex_mem_pf             <= mmu_fault;
+            ex_mem_pa             <= mmu_pa;
         end
     end
 
@@ -432,6 +470,9 @@ module core_pipe #(
         .trap_vec(csr_trap_vec),
         .mepc(csr_mepc),
         .sepc(csr_sepc),
+        .pf(ex_mem_pf),
+        .pf_store(ex_mem_mem_write),
+        .va(ex_mem_alu_result),
         .take_trap(take_trap),
         .mem_trap(mem_trap),
         .mret_ok(mret_ok),
@@ -439,13 +480,17 @@ module core_pipe #(
         .cause(mem_cause),
         .tval(mem_tval),
         .trap_target(trap_target),
-        .sfence(ex_mem_sfence)
+        .sfence(ex_mem_sfence),
+        .csr_we(ex_mem_csr_we),
+        .csr_addr(ex_mem_csr_addr),
+        .refetch(refetch),
+        .tlb_flush(tlb_flush)
     );
-    assign mem_addr   = ex_addr;  // ex mem alu result gets this
-    assign mem_wdata  = ex_rs2;  // ex mem rs2 data gets this
-    assign mem_write  = id_ex_mem_write && !mem_trap;  // no store on trap
-    assign mem_read   = id_ex_mem_read;
-    assign mem_funct3 = id_ex_funct3;
+    assign mem_addr = ptw_busy ? ptw_addr : mmu_pa;  // walker owns port
+    assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
+    assign mem_write  = id_ex_mem_write && !mem_flush && !mmu_stall && !mmu_fault && !ptw_busy;  // no bad store
+    assign mem_read = ptw_busy || id_ex_mem_read;
+    assign mem_funct3 = ptw_busy ? 3'b010 : id_ex_funct3;  // walker reads words
     wb_mux u_wb_mux (
         .sel(mem_wb_wb_sel),
         .alu_result(mem_wb_alu_result),
@@ -477,7 +522,10 @@ module core_pipe #(
         .timer_irq(timer_irq),
         .int_pending(csr_int_pending),
         .priv_o(priv_o),
-        .int_cause(csr_int_cause)
+        .int_cause(csr_int_cause),
+        .satp_o(csr_satp),
+        .sum_o(csr_sum),
+        .mxr_o(csr_mxr)
     );
     always @(posedge clk or posedge rst) begin
         if (rst) begin

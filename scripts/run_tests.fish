@@ -38,7 +38,10 @@ set tests \
     smode       top_pipe_smode_tb \
     sint        top_pipe_sint_tb \
     tval        top_pipe_tval_tb \
-    decoder     decoder_tb
+    decoder     decoder_tb \
+    pte_check    pte_check_tb \
+    tlb         tlb_tb \
+    ptw         ptw_tb
 
 for i in (seq 1 2 (count $tests))
     set name $tests[$i]
