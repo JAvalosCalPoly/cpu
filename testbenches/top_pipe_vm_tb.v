@@ -62,7 +62,7 @@ check(`LOG(5), 32'h0000_8000, "  tval = VA");
 check(`SIG(3), 32'h0000_BBBB, "S load user page, SUM=1");
 // sfence.vma
 check(`SIG(4), 32'h0000_BBBB, "before sfence: old mapping");
-check(`SIG(5), 32'h0000_00C7, "after sfence: new mapping");
+check(`SIG(5), 32'h0000_00CF, "after sfence: new mapping");
 // ends in M
 check(dut.u_core.priv_o, 2'b11, "priv = M at end");
 check(`SIG(60), 32'hD0E0_000D, "DONE marker");

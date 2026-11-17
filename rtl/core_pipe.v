@@ -92,7 +92,21 @@ module core_pipe #(
     wire mem_flush = mem_trap || refetch;  // flush younger instrs
     wire [31:0] flush_target = mem_trap ? trap_target : ex_mem_pc_plus4;  // trap or pc+4
 
-    assign instr_addr  = fetch_addr;
+    wire [31:0] fetch_pa;  // translated fetch
+    wire i_ok, i_fault;
+    reg fetch_ok, fetch_pf;  // how the fetch of pc went
+    wire if_retry = !fetch_ok && !fetch_pf;  // itlb miss: instr is garbage
+    assign instr_addr  = fetch_pa;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            fetch_ok <= 1'b1;  // M mode at reset
+            fetch_pf <= 1'b0;
+        end else begin
+            fetch_ok <= i_ok && !mem_flush;  // flush: redo fetch with new priv/satp
+            fetch_pf <= i_fault && !mem_flush;
+        end
+    end
     assign if_pc_plus4 = pc + 4;
     assign load_commit = ex_mem_mem_read && !mem_trap;
     assign commit_addr = ex_mem_pa;  // physical, for mmio
@@ -120,12 +134,20 @@ module core_pipe #(
             if_id_valid    <= 0;
             if_id_ipf      <= 0;
         end else if (!(stall || ex_hold)) begin  // stall: hold
-            pc             <= pc_next;
-            if_id_pc       <= pc;
-            if_id_instr    <= instr;
-            if_id_pc_plus4 <= if_pc_plus4;
-            if_id_valid    <= 1;
-            if_id_ipf      <= 1'b0;
+            if (if_retry) begin  // itlb miss: bubble, fetch pc again
+                if_id_pc       <= 0;
+                if_id_instr    <= 32'h00000013;
+                if_id_pc_plus4 <= 0;
+                if_id_valid    <= 0;
+                if_id_ipf      <= 0;
+            end else begin
+                pc             <= pc_next;
+                if_id_pc       <= pc;
+                if_id_instr    <= fetch_pf ? 32'h00000013 : instr;  // fault: nop
+                if_id_pc_plus4 <= if_pc_plus4;
+                if_id_valid    <= 1;
+                if_id_ipf      <= fetch_pf;
+            end
         end
     end
 
@@ -322,7 +344,7 @@ module core_pipe #(
     ) u_next_pc (
         .rst(rst),
         .mem_trap(mem_flush),
-        .hold(stall || ex_hold),
+        .hold(stall || ex_hold || if_retry),
         .branch(id_ex_branch),
         .branch_taken(ex_branch_taken),
         .jal(id_ex_jal),
@@ -373,12 +395,12 @@ module core_pipe #(
     mmu u_mmu (
         .clk(clk),
         .rst(rst),
-        .i_req(1'b0),  // fetch side in 6c
-        .i_va(32'b0),
-        .i_kill(1'b0),
-        .i_pa(),
-        .i_ok(),
-        .i_fault(),
+        .i_req(1'b1),
+        .i_va(fetch_addr),
+        .i_kill(ex_redirect || mem_flush),
+        .i_pa(fetch_pa),
+        .i_ok(i_ok),
+        .i_fault(i_fault),
         .req(id_ex_valid && (id_ex_mem_read || id_ex_mem_write)),
         .store(id_ex_mem_write),
         .va(ex_addr),

@@ -49,7 +49,7 @@ Disassembly of section .text:
       80: 00000913     	addi	x18, x0, 0x0
 
 00000084 <print_digit>:
-      84: 029452b3     	<unknown>
+      84: 029452b3     	divu	x5, x8, x9
       88: 00029463     	bne	x5, x0, 0x90 <print_it>
       8c: 00090863     	beq	x18, x0, 0x9c <skip_zero>
 
@@ -59,9 +59,9 @@ Disassembly of section .text:
       98: fb1ff0ef     	jal	x1, 0x48 <uart_putc>
 
 0000009c <skip_zero>:
-      9c: 02947433     	<unknown>
+      9c: 02947433     	remu	x8, x8, x9
       a0: 00a00313     	addi	x6, x0, 0xa
-      a4: 0264d4b3     	<unknown>
+      a4: 0264d4b3     	divu	x9, x9, x6
       a8: fc049ee3     	bne	x9, x0, 0x84 <print_digit>
       ac: 00091663     	bne	x18, x0, 0xb8 <print_done>
       b0: 03000513     	addi	x10, x0, 0x30

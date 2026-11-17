@@ -51,7 +51,7 @@ Disassembly of section .text:
       98: 00800993     	addi	x19, x0, 0x8
       9c: 080f8913     	addi	x18, x31, 0x80
       a0: 00000073     	ecall
-      a4: 02314333     	<unknown>
+      a4: 02314333     	div	x6, x2, x3
       a8: 00400993     	addi	x19, x0, 0x4
       ac: 03bfae23     	sw	x27, 0x3c(x31)
       b0: 048f8913     	addi	x18, x31, 0x48
@@ -81,7 +81,7 @@ Disassembly of section .text:
       f8: 01892423     	sw	x24, 0x8(x18)
       fc: 3e800c93     	addi	x25, x0, 0x3e8
      100: 00a00d13     	addi	x26, x0, 0xa
-     104: 03accdb3     	<unknown>
+     104: 03accdb3     	div	x27, x25, x26
      108: 001a0a13     	addi	x20, x20, 0x1
      10c: 013b8bb3     	add	x23, x23, x19
      110: 341b9073     	csrrw	x0, mepc, x23

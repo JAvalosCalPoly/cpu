@@ -22,7 +22,7 @@ Disassembly of section .text:
       3c: 00b39393     	slli	x7, x7, 0xb
       40: 0063a023     	sw	x6, 0x0(x7)
       44: 000032b7     	lui	x5, 0x3
-      48: 0c700313     	addi	x6, x0, 0xc7
+      48: 0cf00313     	addi	x6, x0, 0xcf
       4c: 0062a023     	sw	x6, 0x0(x5)
       50: 4c700313     	addi	x6, x0, 0x4c7
       54: 0062a223     	sw	x6, 0x4(x5)

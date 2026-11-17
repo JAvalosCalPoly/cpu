@@ -8,6 +8,7 @@
     .equ KRW, 0xC7               # D A W R V
     .equ KRO, 0x43               # A R V
     .equ URW, 0xD7               # D A U W R V
+    .equ KRWX, 0xCF              # D A X W R V
     .equ PTR, 0x01               # V only: next table
 
 _start:                      # M mode
@@ -26,9 +27,9 @@ _start:                      # M mode
     li x6, KRW
     li x7, ROOT + 0x800      # root[512]
     sw x6, 0(x7)
-    # L0[0..3]: identity, kernel RW
+    # L0[0..3]: identity, kernel RW (L0[0] also X)
     li x5, L0
-    li x6, (0 << 10) | KRW
+    li x6, (0 << 10) | KRWX      # code page: executable
     sw x6, 0(x5)
     li x6, (1 << 10) | KRW
     sw x6, 4(x5)
@@ -96,7 +97,7 @@ s_code:                      # S mode, data translated
     sw x11, 16(x31) # [4] 0xBBBB (stale)
     sfence.vma x0, x0
     lw x11, 0(x10)           # walks again: L0[0]
-    sw x11, 20(x31) # [5] 0x000000C7
+    sw x11, 20(x31) # [5] 0x000000CF
     ecall                    # cause 9 -> m_handler
 
 m_handler:                   # M mode

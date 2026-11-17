@@ -128,29 +128,29 @@ Disassembly of section .text:
 00000190 <after_func>:
      190: 00600813     	addi	x16, x0, 0x6
      194: ff900893     	addi	x17, x0, -0x7
-     198: 031803b3     	<unknown>
+     198: 031803b3     	mul	x7, x16, x17
      19c: 08742223     	sw	x7, 0x84(x8)
      1a0: 80000937     	lui	x18, 0x80000
-     1a4: 032913b3     	<unknown>
+     1a4: 032913b3     	mulh	x7, x18, x18
      1a8: 08742423     	sw	x7, 0x88(x8)
-     1ac: 0294b3b3     	<unknown>
+     1ac: 0294b3b3     	mulhu	x7, x9, x9
      1b0: 08742623     	sw	x7, 0x8c(x8)
-     1b4: 0294a3b3     	<unknown>
+     1b4: 0294a3b3     	mulhsu	x7, x9, x9
      1b8: 08742823     	sw	x7, 0x90(x8)
      1bc: fec00993     	addi	x19, x0, -0x14
-     1c0: 0309c3b3     	<unknown>
+     1c0: 0309c3b3     	div	x7, x19, x16
      1c4: 08742a23     	sw	x7, 0x94(x8)
-     1c8: 0309e3b3     	<unknown>
+     1c8: 0309e3b3     	rem	x7, x19, x16
      1cc: 08742c23     	sw	x7, 0x98(x8)
-     1d0: 0304d3b3     	<unknown>
+     1d0: 0304d3b3     	divu	x7, x9, x16
      1d4: 08742e23     	sw	x7, 0x9c(x8)
-     1d8: 0304f3b3     	<unknown>
+     1d8: 0304f3b3     	remu	x7, x9, x16
      1dc: 0a742023     	sw	x7, 0xa0(x8)
-     1e0: 020843b3     	<unknown>
+     1e0: 020843b3     	div	x7, x16, x0
      1e4: 0a742223     	sw	x7, 0xa4(x8)
-     1e8: 020863b3     	<unknown>
+     1e8: 020863b3     	rem	x7, x16, x0
      1ec: 0a742423     	sw	x7, 0xa8(x8)
-     1f0: 029943b3     	<unknown>
+     1f0: 029943b3     	div	x7, x18, x9
      1f4: 0a742623     	sw	x7, 0xac(x8)
      1f8: 00000a13     	addi	x20, x0, 0x0
      1fc: 00100a93     	addi	x21, x0, 0x1
