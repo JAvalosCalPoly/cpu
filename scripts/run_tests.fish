@@ -46,6 +46,7 @@ set tests \
     sfence      top_pipe_sfence_tb \
     vm          top_pipe_vm_tb \
     ifetch      top_pipe_ifetch_tb \
+    atomics     atomic_unit_tb
 
 for i in (seq 1 2 (count $tests))
     set name $tests[$i]
