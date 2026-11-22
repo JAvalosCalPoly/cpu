@@ -140,6 +140,7 @@ module mmu_tb;
     endtask
 
     integer d_done, i_done;
+    reg [31:0] d_pa;  // pa when D finished
     reg saw_stall;
 
     task check(input got, input exp, input [8*32-1:0] name);
@@ -231,13 +232,17 @@ module mmu_tb;
         i_req = 1;
         d_done = -1;
         i_done = -1;
-        for (k = 0; k < 30 && (d_done < 0 || i_done < 0); k = k + 1) begin
+                for (k = 0; k < 30 && (d_done < 0 || i_done < 0); k = k + 1) begin
             #1;
-            if (d_done < 0 && !stall) d_done = k;
+            if (d_done < 0 && !stall) begin
+                d_done = k;
+                d_pa   = pa;  // grab it before req drops
+            end
             if (i_done < 0 && i_ok) i_done = k;
             @(posedge clk);
+            if (d_done >= 0) req = 0;  // load left EX
         end
-        if (d_done < 0 || i_done < 0 || !(d_done < i_done) || pa !== 32'h00200234 ||
+        if (d_done < 0 || i_done < 0 || !(d_done < i_done) || d_pa !== 32'h00200234 ||
             i_pa !== 32'h00300010) begin
             $display("FAIL: D+I miss: d_done=%0d i_done=%0d pa=%h i_pa=%h", d_done, i_done, pa,
                      i_pa);

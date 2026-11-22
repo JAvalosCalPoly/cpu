@@ -57,7 +57,7 @@ module mmu (
     wire miss = req && xlate && !tlb_hit;
     wire i_miss = i_req && xlate && !itlb_hit;
     wire start_d = miss && !ptw_busy && !ptw_done && !kill;  // data first
-    wire start_i = i_miss && !miss && !ptw_busy && !ptw_done && !i_kill;
+    wire start_i = i_miss && !miss && !ptw_busy && !ptw_done && !i_kill && !req;
     wire done_d = ptw_done && !owner;
     wire done_i = ptw_done && owner;
     wire ptw_fill = done_d && !ptw_fault && !kill;

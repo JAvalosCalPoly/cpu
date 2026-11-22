@@ -47,6 +47,8 @@ module core_pipe #(
     reg id_ex_valid;
     reg [31:0] id_ex_instr;
     reg id_ex_ipf;
+    reg id_ex_is_lr, id_ex_is_sc, id_ex_is_amo;
+    reg [4:0] id_ex_funct5;
     //EX/MEM
     reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
     reg ex_mem_is_csr, ex_mem_csr_we;
@@ -74,6 +76,7 @@ module core_pipe #(
     //IF
     reg [31:0] pc;
     wire [31:0] if_pc_plus4, pc_next;
+    wire atom_busy;
 
     wire ex_redirect;  // declared early for iverilog
     wire stall, ex_busy;
@@ -92,11 +95,12 @@ module core_pipe #(
     wire mem_flush = mem_trap || refetch;  // flush younger instrs
     wire [31:0] flush_target = mem_trap ? trap_target : ex_mem_pc_plus4;  // trap or pc+4
 
+
     wire [31:0] fetch_pa;  // translated fetch
     wire i_ok, i_fault;
     reg fetch_ok, fetch_pf;  // how the fetch of pc went
     wire if_retry = !fetch_ok && !fetch_pf;  // itlb miss: instr is garbage
-    assign instr_addr  = fetch_pa;
+    assign instr_addr = fetch_pa;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -159,6 +163,8 @@ module core_pipe #(
     wire id_alu_b_sel, id_reg_write, id_mem_read, id_mem_write;
     wire id_branch, id_jal, id_jalr, id_is_csr, id_illegal, id_ecall, id_ebreak, id_mret, id_sret;
     wire id_sfence;
+    wire id_is_lr, id_is_sc, id_is_amo;
+    wire [4:0] id_funct5;
 
     wire [31:0] id_rs1_data, id_rs2_data, id_imm, wb_data;
 
@@ -195,7 +201,11 @@ module core_pipe #(
         .is_mret(id_mret),
         .is_sret(id_sret),
         .illegal(id_illegal),
-        .is_sfence(id_sfence)
+        .is_sfence(id_sfence),
+        .is_lr(id_is_lr),
+        .is_sc(id_is_sc),
+        .is_amo(id_is_amo),
+        .funct5(id_funct5)
     );
 
     immgen u_immgen (
@@ -247,6 +257,10 @@ module core_pipe #(
             id_ex_instr     <= 0;
             id_ex_sfence    <= 0;
             id_ex_ipf       <= 0;
+            id_ex_is_lr     <= 0;
+            id_ex_is_sc     <= 0;
+            id_ex_is_amo    <= 0;
+            id_ex_funct5    <= 0;
         end else if (mem_flush || (!ex_hold && (ex_redirect || stall))) begin
             id_ex_valid     <= 0;  // bubble
             id_ex_reg_write <= 0;  // bubble
@@ -266,6 +280,9 @@ module core_pipe #(
             id_ex_instr     <= 0;
             id_ex_sfence    <= 0;
             id_ex_ipf       <= 0;
+            id_ex_is_lr     <= 0;
+            id_ex_is_sc     <= 0;
+            id_ex_is_amo    <= 0;
         end else if (ex_hold) begin  // hold, keep forwarded operands
             id_ex_rs1_data <= ex_rs1;
             id_ex_rs2_data <= ex_rs2;
@@ -299,6 +316,10 @@ module core_pipe #(
             id_ex_instr     <= if_id_instr;
             id_ex_sfence    <= id_sfence;
             id_ex_ipf       <= if_id_ipf;
+            id_ex_is_lr     <= id_is_lr;
+            id_ex_is_sc     <= id_is_sc;
+            id_ex_is_amo    <= id_is_amo;
+            id_ex_funct5    <= id_funct5;
         end
     end
 
@@ -306,6 +327,7 @@ module core_pipe #(
     wire [31:0] ex_alu_a, ex_alu_b, ex_alu_result, mem_mul_result;
     wire [31:0] ex_branch_target, ex_jalr_target;
     wire ex_branch_taken;
+    wire ex_atomic = id_ex_is_lr || id_ex_is_sc || id_ex_is_amo;
     wire div_busy, div_done;
     wire ex_is_div = (id_ex_wb_sel == 2'b11) && id_ex_funct3[2]; // funct3[2] = 1 for div/rem, 0 for mul
     wire div_start = ex_is_div && !div_busy && !div_done;
@@ -328,15 +350,17 @@ module core_pipe #(
         .ex_rs2(ex_rs2)
     );
 
-    assign ex_busy = ex_is_div && !div_done;
+    assign ex_busy = (ex_is_div && !div_done) || atom_busy;
     // alu muxes
     assign ex_alu_a = (id_ex_alu_a_sel == 2'b01) ? id_ex_pc : (id_ex_alu_a_sel == 2'b10) ? 32'b0 : ex_rs1;
     assign ex_alu_b = (id_ex_alu_b_sel == 1'b1) ? id_ex_imm : ex_rs2;
     //jump targets
     assign ex_branch_target = id_ex_pc + id_ex_imm;
-    wire [31:0] ex_addr = ex_rs1 + id_ex_imm;  // rs1 + imm, jalr & ld/st
+    wire [31:0] ex_addr = ex_rs1 + (ex_atomic ? 32'b0 : id_ex_imm);  // rs1 + imm, jalr & ld/st; atomics use rs1
     wire [31:0] ex_csr_src = id_ex_funct3[2] ? {27'b0, id_ex_rs1} : ex_rs1;  // uimm or rs1
     wire ex_csr_we = id_ex_is_csr && ((id_ex_funct3[1:0] == 2'b01) || (id_ex_rs1 != 0)); // W always, S/C only if rs1 != 0
+    wire atom_amo_wr, atom_sc_ok;
+    wire [31:0] atom_wdata, atom_result;
 
     assign ex_jalr_target = {ex_addr[31:1], 1'b0};  // rs1 + imm, bit 0 cleared
     next_pc #(
@@ -417,6 +441,25 @@ module core_pipe #(
         .ptw_addr(ptw_addr),
         .mem_rdata(mem_rdata)
     );
+    atomic_unit u_atomic_unit (
+        .clk(clk),
+        .rst(rst),
+        .is_lr(id_ex_is_lr),
+        .is_sc(id_ex_is_sc),
+        .is_amo(id_ex_is_amo),
+        .funct5(id_ex_funct5),
+        .pa(mmu_pa),
+        .rs2(ex_rs2),
+        .go(!mmu_stall && !mmu_fault),
+        .advance(!mem_flush && !ex_hold),
+        .clear(mem_flush),
+        .mem_rdata(mem_rdata),
+        .amo_wr(atom_amo_wr),
+        .amo_wdata(atom_wdata),
+        .sc_ok(atom_sc_ok),
+        .busy(atom_busy),
+        .result(atom_result)
+    );
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             ex_mem_alu_result     <= 0;
@@ -462,7 +505,12 @@ module core_pipe #(
             ex_mem_pf        <= 0;
             ex_mem_ipf       <= 0;
         end else begin
-            ex_mem_valid          <= id_ex_valid;  // valid instruction moving into MEM stage
+            ex_mem_valid <= id_ex_valid;  // valid instruction moving into MEM stage
+            if (mmu_fault)  // keep va for tval
+                ex_mem_alu_result <= ex_addr;
+            else if (id_ex_is_sc || id_ex_is_amo)  // sc 0/1, amo old
+                ex_mem_alu_result <= atom_result;
+            else ex_mem_alu_result <= ex_alu_result;
             ex_mem_alu_result     <= ex_alu_result;
             ex_mem_multdiv_result <= div_result;
             ex_mem_rs2_data       <= ex_rs2;
@@ -528,10 +576,11 @@ module core_pipe #(
         .tlb_flush(tlb_flush),
         .ipf(ex_mem_ipf)
     );
-    assign mem_addr = ptw_busy ? ptw_addr : mmu_pa;  // walker owns port
-    assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
-    assign mem_write  = id_ex_mem_write && !mem_flush && !mmu_stall && !mmu_fault && !ptw_busy;  // no bad store
-    assign mem_read = ptw_busy || id_ex_mem_read;
+    assign mem_addr  = ptw_busy ? ptw_addr : mmu_pa;  // walker owns port
+    assign mem_wdata = id_ex_is_amo ? atom_wdata : ex_rs2;
+    wire store_en = id_ex_is_amo ? atom_amo_wr : id_ex_is_sc ? atom_sc_ok : id_ex_mem_write;
+    assign mem_write  = store_en && !mem_flush && !mmu_stall && !mmu_fault && !ptw_busy;  // no bad store
+    assign mem_read = ptw_busy || id_ex_mem_read || id_ex_is_amo;
     assign mem_funct3 = ptw_busy ? 3'b010 : id_ex_funct3;  // walker reads words
     wb_mux u_wb_mux (
         .sel(mem_wb_wb_sel),
