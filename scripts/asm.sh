@@ -4,7 +4,7 @@
 name=${1%.S}                 # .S removed if it's there
 ld=$(dirname "$0")/link.ld   # link.ld next to this script
 
-llvm-mc -triple=riscv32 -mattr=+m,+zicsr,-relax -filetype=obj $name.S -o $name.o || exit 1  # assemble
+llvm-mc -triple=riscv32 -mattr=+m,+a,+zicsr,-relax -filetype=obj $name.S -o $name.o || exit 1  # assemble
 ld.lld -T $ld $name.o -o $name.elf || exit 1                                              # link, real addresses
 llvm-objcopy -O binary $name.elf $name.bin                                                # code + data
 od -An -v -t x4 -w4 $name.bin | tr -d ' ' > $name.hex                                     # one 32-bit word per line

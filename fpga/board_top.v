@@ -7,7 +7,7 @@ module board_top (
     output wire        UART_RXD_OUT,    // serial out
     input  wire        UART_TXD_IN
 );
-    // 100 MHz in, 80 MHz out
+    // 100 MHz in, 40 MHz out
     wire clk, locked;
     clk_wiz_0 u_clk (
         .clk_in1(CLK100MHZ),
@@ -23,16 +23,22 @@ module board_top (
     wire        store;
     wire [31:0] store_data;
 
-    top_pipe #(.ADDR_BITS(12), .INIT_FILE("test_uart.hex")) u_top (
-    .clk(clk), .rst(rst),
-    .store(store), .store_data(store_data),
-    .uart_tx(UART_RXD_OUT),
-    .uart_rx(UART_TXD_IN)
+    top_pipe #(
+        .ADDR_BITS(12),
+        .CLK_HZ   (40_000_000),  // must match clk_out1
+        .INIT_FILE("/home/javalos/Documents/VerilogClass/cpu/testbenches/snake.hex")  // full path: no stale copy
+    ) u_top (
+        .clk       (clk),
+        .rst       (rst),
+        .store     (store),
+        .store_data(store_data),
+        .uart_tx   (UART_RXD_OUT),
+        .uart_rx   (UART_TXD_IN)
     );
 
     // latch every store, so the DONE marker ends up showing: 000D
     always @(posedge clk)
-        if (rst)            LED <= 0;
+        if (rst)        LED <= 0;
         else if (store) LED <= store_data[15:0];
 endmodule
 `default_nettype wire

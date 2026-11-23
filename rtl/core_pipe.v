@@ -511,7 +511,6 @@ module core_pipe #(
             else if (id_ex_is_sc || id_ex_is_amo)  // sc 0/1, amo old
                 ex_mem_alu_result <= atom_result;
             else ex_mem_alu_result <= ex_alu_result;
-            ex_mem_alu_result     <= ex_alu_result;
             ex_mem_multdiv_result <= div_result;
             ex_mem_rs2_data       <= ex_rs2;
             ex_mem_pc_plus4       <= id_ex_pc_plus4;

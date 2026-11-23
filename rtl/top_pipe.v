@@ -4,8 +4,8 @@
 module top_pipe #(
     parameter RESET_PC  = 32'h0000_0000,
     parameter ADDR_BITS = 12,
-    parameter INIT_FILE = "testbenches/test_timer.hex",
-    parameter CLK_HZ    = 80_000_000,
+    parameter INIT_FILE = "/home/javalos/Documents/VerilogClass/cpu/testbenches/snake.hex",
+    parameter CLK_HZ    = 40_000_000,
     parameter BAUD      = 115_200
 ) (
     input  wire        clk,
