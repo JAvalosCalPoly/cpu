@@ -62,9 +62,9 @@ module top_pipe_csr_tb;
         check(5, 32'h0000_AF00, "csrrc AFAF & ~00FF");
         // mstatus
         check(6, 32'h0000_0008, "csrsi mstatus MIE");
-        check(7, 32'h0000_19AA, "mstatus all ones -> 19AA");
-        check(8, 32'h0000_19AA, "csrrci old value");
-        check(9, 32'h0000_19A2, "csrrci clears MIE");
+        check(7, 32'h000C_19AA, "mstatus all ones -> C19AA");
+        check(8, 32'h000C_19AA, "csrrci old value");
+        check(9, 32'h000C_19A2, "csrrci clears MIE");
         // mepc
         check(10, 32'h0000_1000, "mepc 1003 -> 1000");
         // hazards

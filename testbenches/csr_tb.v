@@ -14,6 +14,8 @@ module csr_tb;
     wire valid, int_pending;
     reg timer_irq;  // from timer
     wire [31:0] sepc_o;  // sret target, driven by csr
+    wire [31:0] satp_o;
+    wire sum_o, mxr_o;
 
     csr dut (
         .clk(clk),
@@ -35,7 +37,10 @@ module csr_tb;
         .valid(valid),
         .timer_irq(timer_irq),
         .int_pending(int_pending),
-        .priv_o(priv_o)
+        .priv_o(priv_o),
+        .satp_o(satp_o),
+        .sum_o(sum_o),
+        .mxr_o(mxr_o)
     );
 
     always #5 clk = ~clk;  // 10 ns clock
@@ -115,9 +120,9 @@ module csr_tb;
         // op: 01 W, 10 S, 11 C
         // mstatus: 12:11 MPP, 8 SPP, 7 MPIE, 5 SPIE, 3 MIE, 1 SIE
         run(12'h300, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
-            32'h000019AA);  // W all ones: MPP=11, S bits set
-        run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h000019AA, 32'h000019A2);  // C bit 3
-        run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h000019A2, 32'h000019AA);  // S bit 3
+            32'h000C19AA);  // W all ones: MPP=11, S bits set
+        run(12'h300, 2'b11, 32'h00000008, 1'b1, 32'h000C19AA, 32'h000C19A2);  // C bit 3
+        run(12'h300, 2'b10, 32'h00000008, 1'b1, 32'h000C19A2, 32'h000C19AA);  // S bit 3
         // mscratch
         run(12'h340, 2'b01, 32'hDEADBEEF, 1'b1, 32'h00000000, 32'hDEADBEEF);  // W
         run(12'h340, 2'b10, 32'h00000010, 1'b1, 32'hDEADBEEF, 32'hDEADBEFF);  // S bit 4
@@ -135,7 +140,7 @@ module csr_tb;
         // trap / mret
         run(12'h305, 2'b01, 32'h00000101, 1'b1, 32'h00000100, 32'h00000101);  // mtvec, mode bit set
         check(trap_vec_o, 32'h00000100, "trap_vec_o drops mode");
-        run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h000019AA, 32'h00000008);  // MIE=1, all else 0
+        run(12'h300, 2'b01, 32'h00000008, 1'b1, 32'h000C19AA, 32'h00000008);  // MIE=1, all else 0
         do_trap(32'h00000040, 32'd11);  // ecall at 0x40
         addr = 12'h341;
         #1;
@@ -192,11 +197,11 @@ module csr_tb;
         check(valid, 1'b0, "0x7C0 not valid");
         // S csrs
         run(12'h100, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
-            32'h00000122);  // sstatus: S bits only
+            32'h000C0122);  // sstatus: S bits only
         addr = 12'h300;
         #1;
-        check(dst, 32'h000019AA, "sstatus write kept M bits");
-        run(12'h100, 2'b01, 32'h00000000, 1'b1, 32'h00000122, 32'h00000000);  // clear S bits
+        check(dst, 32'h000C19AA, "sstatus write kept M bits");
+        run(12'h100, 2'b01, 32'h00000000, 1'b1, 32'h000C0122, 32'h00000000);  // clear S bits
         addr = 12'h300;
         #1;
         check(dst, 32'h00001888, "mstatus after sstatus clear");
@@ -208,6 +213,20 @@ module csr_tb;
         run(12'h343, 2'b01, 32'hBEEF0000, 1'b1, 32'h00000000, 32'hBEEF0000);  // mtval
         run(12'h302, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000,
             32'hFFFFF7FF);  // medeleg: bit 11 stuck 0
+        // write SATP = 0xffffffff, eexpect 0x803fffff (MODE=8, ASID=0, PPN=0x3fffff)
+        run(12'h180, 2'b01, 32'hFFFFFFFF, 1'b1, 32'h00000000, 32'h803FFFFF);
+        check(satp_o, 32'h803FFFFF, "satp_o after write");
+        run(12'h180, 2'b01, 32'h80000400, 1'b1, 32'h803FFFFF, 32'h80000400);  // satp: root 0x400000
+        // SUM, MXR via mstatus
+        run(12'h300, 2'b10, 32'h000C0000, 1'b1, 32'h00001888, 32'h000C1888);
+        check(sum_o, 1'b1, "sum_o set");
+        check(mxr_o, 1'b1, "mxr_o set");
+        // clear SUM via sstatus
+        run(12'h100, 2'b11, 32'h00040000, 1'b1, 32'h000C0000, 32'h00080000);
+        check(sum_o, 1'b0, "sum_o cleared by sstatus");
+        addr = 12'h300;
+        #1;
+        check(dst, 32'h00081888, "mstatus sees sstatus SUM clear");
         $display("CSR testbench finished: %0d passed / %0d failed", pass, fail);
         $finish;
     end

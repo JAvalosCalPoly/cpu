@@ -24,6 +24,7 @@ module core_pipe #(
     //IF/ID
     reg [31:0] if_id_pc, if_id_instr, if_id_pc_plus4;
     reg if_id_valid;
+    reg if_id_ipf;  // instruction page fault
 
     //ID/EX
     reg [31:0] id_ex_pc, id_ex_pc_plus4, id_ex_rs1_data, id_ex_rs2_data, id_ex_imm;
@@ -39,11 +40,15 @@ module core_pipe #(
         id_ex_mem_read,
         id_ex_mem_write,
         id_ex_reg_write;
+    reg id_ex_sfence;
     reg id_ex_is_csr;
     reg id_ex_illegal, id_ex_ecall, id_ex_ebreak, id_ex_mret;  // trap flags
     reg id_ex_sret;  // sret flag
     reg id_ex_valid;
-    reg [31:0] id_ex_instr; 
+    reg [31:0] id_ex_instr;
+    reg id_ex_ipf;
+    reg id_ex_is_lr, id_ex_is_sc, id_ex_is_amo;
+    reg [4:0] id_ex_funct5;
     //EX/MEM
     reg [31:0] ex_mem_alu_result, ex_mem_multdiv_result, ex_mem_rs2_data, ex_mem_pc_plus4;
     reg ex_mem_is_csr, ex_mem_csr_we;
@@ -57,6 +62,10 @@ module core_pipe #(
     reg ex_mem_sret;
     reg ex_mem_valid;
     reg [31:0] ex_mem_instr;
+    reg ex_mem_sfence;
+    reg ex_mem_pf;  // load/store page fault
+    reg [31:0] ex_mem_pa;  // physical addr
+    reg ex_mem_ipf;
 
     //MEM/WB
     reg [31:0] mem_wb_alu_result, mem_wb_multdiv_result, mem_wb_pc_plus4, mem_wb_mem_rdata;
@@ -67,37 +76,44 @@ module core_pipe #(
     //IF
     reg [31:0] pc;
     wire [31:0] if_pc_plus4, pc_next;
+    wire atom_busy;
 
-    wire ex_redirect;  // here since iverilog doesn't like it being declared later
-    wire stall;
-    wire ex_busy;
-    wire csr_valid;
-    wire csr_int_pending;  // M or S interrupt pending
+    wire ex_redirect;  // declared early for iverilog
+    wire stall, ex_busy;
+    wire mmu_stall, mmu_fault, ptw_busy;  // dtlb miss / page fault
+    wire ex_hold = ex_busy || mmu_stall;  // hold IF, ID, EX
+    wire [31:0] ex_rs1, ex_rs2;  // forwarded operands
+    wire [31:0] csr_satp;
+    wire csr_sum, csr_mxr;
+    wire csr_valid, csr_int_pending;
     wire [31:0] csr_int_cause;  // M timer -> 0x80000007, S timer -> 0x80000005
-    wire [1:0] priv_o;  // current privilege mode
-    wire mret_bad = ex_mem_mret && (priv_o != 2'b11);  // mret from S or U
-    wire sret_bad = ex_mem_sret && (priv_o == 2'b00);  // sret from U
-    wire mem_csr_bad = ex_mem_is_csr && !csr_valid;
-    wire mem_exc = ex_mem_illegal || ex_mem_ecall || ex_mem_ebreak || mem_csr_bad
-                   || mret_bad || sret_bad;  // exception in MEM
-    // interrupt: real instr in MEM, not a store, no exception
-    wire mem_int = csr_int_pending && ex_mem_valid && !ex_mem_mem_write && !mem_exc;
-    wire [31:0] mem_cause = mem_int ? csr_int_cause :  // timer interrupt
-    (ex_mem_illegal || mem_csr_bad || mret_bad || sret_bad) ? 32'd2 :  // illegal
-    ex_mem_ebreak ? 32'd3 :  // breakpoint
-    ex_mem_ecall ? (32'd8 + priv_o) : 32'd0;  // ecall: 8 U, 9 S, 11 M
-    wire mem_trap = mem_exc || mem_int || ex_mem_mret || ex_mem_sret;  // flush + redirect
     wire [31:0] csr_trap_vec, csr_mepc, csr_sepc;  // trap, mret, sret targets
-    wire ex_is_mul = (id_ex_wb_sel == 2'b11) && !id_ex_funct3[2];  // mul in EX
+    wire [1:0] priv_o;  // current privilege mode
+    wire take_trap, mem_trap, mret_ok, sret_ok;
+    wire [31:0] mem_cause, mem_tval, trap_target, fetch_addr;
+    wire refetch, tlb_flush;
+    wire mem_flush = mem_trap || refetch;  // flush younger instrs
+    wire [31:0] flush_target = mem_trap ? trap_target : ex_mem_pc_plus4;  // trap or pc+4
 
-    wire [31:0] trap_target = (mem_exc || mem_int) ? csr_trap_vec :
-                              ex_mem_sret ? csr_sepc : csr_mepc;  // trap, sret, mret
-    wire [31:0] fetch_addr = rst ? RESET_PC : mem_trap ? trap_target : ex_redirect ? pc_next : (stall || ex_busy) ? pc : pc_next;
 
-    assign instr_addr  = fetch_addr;
+    wire [31:0] fetch_pa;  // translated fetch
+    wire i_ok, i_fault;
+    reg fetch_ok, fetch_pf;  // how the fetch of pc went
+    wire if_retry = !fetch_ok && !fetch_pf;  // itlb miss: instr is garbage
+    assign instr_addr = fetch_pa;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            fetch_ok <= 1'b1;  // M mode at reset
+            fetch_pf <= 1'b0;
+        end else begin
+            fetch_ok <= i_ok && !mem_flush;  // flush: redo fetch with new priv/satp
+            fetch_pf <= i_fault && !mem_flush;
+        end
+    end
     assign if_pc_plus4 = pc + 4;
     assign load_commit = ex_mem_mem_read && !mem_trap;
-    assign commit_addr = ex_mem_alu_result;
+    assign commit_addr = ex_mem_pa;  // physical, for mmio
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -106,30 +122,36 @@ module core_pipe #(
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
-        end else if (mem_trap) begin
-            pc             <= trap_target;
+            if_id_ipf      <= 0;
+        end else if (mem_flush) begin
+            pc             <= flush_target;
             if_id_pc       <= 0;
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
+            if_id_ipf      <= 0;
         end else if (ex_redirect) begin
             pc             <= pc_next;
             if_id_pc       <= 0;
             if_id_instr    <= 32'h00000013;  // addi x0, x0, 0
             if_id_pc_plus4 <= 0;
             if_id_valid    <= 0;
-        end else if (stall || ex_busy) begin
-            pc             <= pc;  // hold pc
-            if_id_pc       <= if_id_pc;  // hold if_id_pc
-            if_id_instr    <= if_id_instr;  // hold if_id_instr
-            if_id_pc_plus4 <= if_id_pc_plus4;  // hold if_id_pc_plus4
-            if_id_valid    <= if_id_valid;  // hold if_id_valid
-        end else begin
-            pc             <= pc_next;
-            if_id_pc       <= pc;
-            if_id_instr    <= instr;
-            if_id_pc_plus4 <= if_pc_plus4;
-            if_id_valid    <= 1;
+            if_id_ipf      <= 0;
+        end else if (!(stall || ex_hold)) begin  // stall: hold
+            if (if_retry) begin  // itlb miss: bubble, fetch pc again
+                if_id_pc       <= 0;
+                if_id_instr    <= 32'h00000013;
+                if_id_pc_plus4 <= 0;
+                if_id_valid    <= 0;
+                if_id_ipf      <= 0;
+            end else begin
+                pc             <= pc_next;
+                if_id_pc       <= pc;
+                if_id_instr    <= fetch_pf ? 32'h00000013 : instr;  // fault: nop
+                if_id_pc_plus4 <= if_pc_plus4;
+                if_id_valid    <= 1;
+                if_id_ipf      <= fetch_pf;
+            end
         end
     end
 
@@ -140,6 +162,9 @@ module core_pipe #(
     wire [1:0] id_alu_a_sel, id_wb_sel;
     wire id_alu_b_sel, id_reg_write, id_mem_read, id_mem_write;
     wire id_branch, id_jal, id_jalr, id_is_csr, id_illegal, id_ecall, id_ebreak, id_mret, id_sret;
+    wire id_sfence;
+    wire id_is_lr, id_is_sc, id_is_amo;
+    wire [4:0] id_funct5;
 
     wire [31:0] id_rs1_data, id_rs2_data, id_imm, wb_data;
 
@@ -147,8 +172,16 @@ module core_pipe #(
     assign id_rs2 = if_id_instr[24:20];
     assign id_rd = if_id_instr[11:7];
     assign id_funct3 = if_id_instr[14:12];
-    assign stall = (id_ex_mem_read || ex_is_mul || id_ex_is_csr) && (id_ex_rd != 0) &&
-               ((id_ex_rd == id_rs1) || (id_ex_rd == id_rs2)); // load/mul/csr-use hazard
+    hazard_unit u_hazard (
+        .id_ex_mem_read(id_ex_mem_read),
+        .id_ex_is_csr(id_ex_is_csr),
+        .id_ex_wb_sel(id_ex_wb_sel),
+        .id_ex_funct3(id_ex_funct3),
+        .id_ex_rd(id_ex_rd),
+        .id_rs1(id_rs1),
+        .id_rs2(id_rs2),
+        .stall(stall)
+    );
     decoder u_decoder (
         .instr(if_id_instr),
         .reg_write(id_reg_write),
@@ -167,7 +200,12 @@ module core_pipe #(
         .is_ebreak(id_ebreak),
         .is_mret(id_mret),
         .is_sret(id_sret),
-        .illegal(id_illegal)
+        .illegal(id_illegal),
+        .is_sfence(id_sfence),
+        .is_lr(id_is_lr),
+        .is_sc(id_is_sc),
+        .is_amo(id_is_amo),
+        .funct5(id_funct5)
     );
 
     immgen u_immgen (
@@ -217,7 +255,13 @@ module core_pipe #(
             id_ex_valid     <= 0;
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
-        end else if (ex_redirect || stall || mem_trap) begin
+            id_ex_sfence    <= 0;
+            id_ex_ipf       <= 0;
+            id_ex_is_lr     <= 0;
+            id_ex_is_sc     <= 0;
+            id_ex_is_amo    <= 0;
+            id_ex_funct5    <= 0;
+        end else if (mem_flush || (!ex_hold && (ex_redirect || stall))) begin
             id_ex_valid     <= 0;  // bubble
             id_ex_reg_write <= 0;  // bubble
             id_ex_mem_write <= 0;
@@ -234,34 +278,14 @@ module core_pipe #(
             id_ex_mret      <= 0;
             id_ex_sret      <= 0;
             id_ex_instr     <= 0;
-        end else if (ex_busy) begin
-            id_ex_pc        <= id_ex_pc;  // hold
-            id_ex_pc_plus4  <= id_ex_pc_plus4;  // hold
-            id_ex_rs1_data  <= id_ex_rs1_data;  // hold
-            id_ex_rs2_data  <= id_ex_rs2_data;  // hold
-            id_ex_imm       <= id_ex_imm;  // hold
-            id_ex_rd        <= id_ex_rd;  // hold
-            id_ex_rs1       <= id_ex_rs1;  // hold
-            id_ex_rs2       <= id_ex_rs2;  // hold
-            id_ex_alu_op    <= id_ex_alu_op;  // hold
-            id_ex_funct3    <= id_ex_funct3;  // hold
-            id_ex_alu_a_sel <= id_ex_alu_a_sel;  // hold
-            id_ex_alu_b_sel <= id_ex_alu_b_sel;  // hold
-            id_ex_wb_sel    <= id_ex_wb_sel;  // hold
-            id_ex_branch    <= id_ex_branch;  // hold
-            id_ex_jal       <= id_ex_jal;  // hold
-            id_ex_jalr      <= id_ex_jalr;  // hold
-            id_ex_mem_read  <= id_ex_mem_read;  // hold
-            id_ex_mem_write <= id_ex_mem_write;  // hold
-            id_ex_reg_write <= id_ex_reg_write;  // hold
-            id_ex_is_csr    <= id_ex_is_csr;  // hold
-            id_ex_illegal   <= id_ex_illegal;  // hold
-            id_ex_ecall     <= id_ex_ecall;  // hold
-            id_ex_ebreak    <= id_ex_ebreak;  // hold
-            id_ex_mret      <= id_ex_mret;  // hold
-            id_ex_valid     <= id_ex_valid;  // hold
-            id_ex_sret      <= id_ex_sret;  // hold
-            id_ex_instr     <= id_ex_instr;  // hold
+            id_ex_sfence    <= 0;
+            id_ex_ipf       <= 0;
+            id_ex_is_lr     <= 0;
+            id_ex_is_sc     <= 0;
+            id_ex_is_amo    <= 0;
+        end else if (ex_hold) begin  // hold, keep forwarded operands
+            id_ex_rs1_data <= ex_rs1;
+            id_ex_rs2_data <= ex_rs2;
         end else begin
             id_ex_pc        <= if_id_pc;
             id_ex_pc_plus4  <= if_id_pc_plus4;
@@ -290,6 +314,12 @@ module core_pipe #(
             id_ex_valid     <= if_id_valid;  // valid instruction moving into EX stage
             id_ex_sret      <= id_sret;
             id_ex_instr     <= if_id_instr;
+            id_ex_sfence    <= id_sfence;
+            id_ex_ipf       <= if_id_ipf;
+            id_ex_is_lr     <= id_is_lr;
+            id_ex_is_sc     <= id_is_sc;
+            id_ex_is_amo    <= id_is_amo;
+            id_ex_funct5    <= id_funct5;
         end
     end
 
@@ -297,40 +327,61 @@ module core_pipe #(
     wire [31:0] ex_alu_a, ex_alu_b, ex_alu_result, mem_mul_result;
     wire [31:0] ex_branch_target, ex_jalr_target;
     wire ex_branch_taken;
+    wire ex_atomic = id_ex_is_lr || id_ex_is_sc || id_ex_is_amo;
     wire div_busy, div_done;
     wire ex_is_div = (id_ex_wb_sel == 2'b11) && id_ex_funct3[2]; // funct3[2] = 1 for div/rem, 0 for mul
     wire div_start = ex_is_div && !div_busy && !div_done;
     wire [31:0] div_result;
-    // forwarding
-    wire fwd_a_exmem = ex_mem_reg_write && (ex_mem_rd != 0) && (ex_mem_rd == id_ex_rs1);
-    wire fwd_b_exmem = ex_mem_reg_write && (ex_mem_rd != 0) && (ex_mem_rd == id_ex_rs2);
-    wire fwd_a_memwb = mem_wb_reg_write && (mem_wb_rd != 0) && (mem_wb_rd == id_ex_rs1);
-    wire fwd_b_memwb = mem_wb_reg_write && (mem_wb_rd != 0) && (mem_wb_rd == id_ex_rs2);
+    forward_unit u_forward (
+        .id_ex_rs1(id_ex_rs1),
+        .id_ex_rs2(id_ex_rs2),
+        .id_ex_rs1_data(id_ex_rs1_data),
+        .id_ex_rs2_data(id_ex_rs2_data),
+        .ex_mem_reg_write(ex_mem_reg_write),
+        .ex_mem_rd(ex_mem_rd),
+        .ex_mem_wb_sel(ex_mem_wb_sel),
+        .ex_mem_alu_result(ex_mem_alu_result),
+        .ex_mem_multdiv_result(ex_mem_multdiv_result),
+        .ex_mem_pc_plus4(ex_mem_pc_plus4),
+        .mem_wb_reg_write(mem_wb_reg_write),
+        .mem_wb_rd(mem_wb_rd),
+        .wb_data(wb_data),
+        .ex_rs1(ex_rs1),
+        .ex_rs2(ex_rs2)
+    );
 
-    wire [31:0] ex_mem_result = (ex_mem_wb_sel == 2'b10) ? ex_mem_pc_plus4:
-                            (ex_mem_wb_sel == 2'b11) ? ex_mem_multdiv_result : ex_mem_alu_result;
-    wire [31:0] ex_rs1 = fwd_a_exmem ? ex_mem_result : fwd_a_memwb ? wb_data : id_ex_rs1_data;
-    wire [31:0] ex_rs2 = fwd_b_exmem ? ex_mem_result : fwd_b_memwb ? wb_data : id_ex_rs2_data;
-
-    assign ex_busy = ex_is_div && !div_done;
+    assign ex_busy = (ex_is_div && !div_done) || atom_busy;
     // alu muxes
     assign ex_alu_a = (id_ex_alu_a_sel == 2'b01) ? id_ex_pc : (id_ex_alu_a_sel == 2'b10) ? 32'b0 : ex_rs1;
     assign ex_alu_b = (id_ex_alu_b_sel == 1'b1) ? id_ex_imm : ex_rs2;
     //jump targets
     assign ex_branch_target = id_ex_pc + id_ex_imm;
-    wire [31:0] ex_addr = ex_rs1 + id_ex_imm;  // rs1 + imm, jalr & ld/st
+    wire [31:0] ex_addr = ex_rs1 + (ex_atomic ? 32'b0 : id_ex_imm);  // rs1 + imm, jalr & ld/st; atomics use rs1
     wire [31:0] ex_csr_src = id_ex_funct3[2] ? {27'b0, id_ex_rs1} : ex_rs1;  // uimm or rs1
     wire ex_csr_we = id_ex_is_csr && ((id_ex_funct3[1:0] == 2'b01) || (id_ex_rs1 != 0)); // W always, S/C only if rs1 != 0
+    wire atom_amo_wr, atom_sc_ok;
+    wire [31:0] atom_wdata, atom_result;
 
     assign ex_jalr_target = {ex_addr[31:1], 1'b0};  // rs1 + imm, bit 0 cleared
-    //pc_next back to IF
-    // assign pc_next = (id_ex_jalr) ? ex_jalr_target :
-    //                 (id_ex_jal) ? ex_branch_target :
-    //                 (id_ex_branch && ex_branch_taken) ? ex_branch_target : if_pc_plus4;
-    assign pc_next = id_ex_jalr ? ex_jalr_target : ex_redirect ? ex_branch_target : if_pc_plus4;
-
-    // redirect
-    assign ex_redirect = (id_ex_branch && ex_branch_taken) || id_ex_jal || id_ex_jalr;
+    next_pc #(
+        .RESET_PC(RESET_PC)
+    ) u_next_pc (
+        .rst(rst),
+        .mem_trap(mem_flush),
+        .hold(stall || ex_hold || if_retry),
+        .branch(id_ex_branch),
+        .branch_taken(ex_branch_taken),
+        .jal(id_ex_jal),
+        .jalr(id_ex_jalr),
+        .pc(pc),
+        .pc_plus4(if_pc_plus4),
+        .branch_target(ex_branch_target),
+        .jalr_target(ex_jalr_target),
+        .trap_target(flush_target),
+        .redirect(ex_redirect),
+        .pc_next(pc_next),
+        .fetch_addr(fetch_addr)
+    );
     //alu
     alu u_alu (
         .a(ex_alu_a),
@@ -352,7 +403,7 @@ module core_pipe #(
         .a(ex_rs1),
         .b(ex_rs2),
         .op(id_ex_funct3[1:0]),
-        .flush(mem_trap),
+        .flush(mem_flush),
         .busy(div_busy),
         .done(div_done),
         .result(div_result)
@@ -362,6 +413,52 @@ module core_pipe #(
         .b(ex_rs2),
         .funct3(id_ex_funct3),
         .branch_taken(ex_branch_taken)
+    );
+    // data mmu
+    wire [31:0] mmu_pa, ptw_addr;
+    mmu u_mmu (
+        .clk(clk),
+        .rst(rst),
+        .i_req(1'b1),
+        .i_va(fetch_addr),
+        .i_kill(ex_redirect || mem_flush),
+        .i_pa(fetch_pa),
+        .i_ok(i_ok),
+        .i_fault(i_fault),
+        .req(id_ex_valid && (id_ex_mem_read || id_ex_mem_write)),
+        .store(id_ex_mem_write),
+        .va(ex_addr),
+        .priv(priv_o),
+        .satp(csr_satp),
+        .sum(csr_sum),
+        .mxr(csr_mxr),
+        .tlb_flush(tlb_flush),
+        .kill(mem_flush),
+        .pa(mmu_pa),
+        .stall(mmu_stall),
+        .fault(mmu_fault),
+        .ptw_busy(ptw_busy),
+        .ptw_addr(ptw_addr),
+        .mem_rdata(mem_rdata)
+    );
+    atomic_unit u_atomic_unit (
+        .clk(clk),
+        .rst(rst),
+        .is_lr(id_ex_is_lr),
+        .is_sc(id_ex_is_sc),
+        .is_amo(id_ex_is_amo),
+        .funct5(id_ex_funct5),
+        .pa(mmu_pa),
+        .rs2(ex_rs2),
+        .go(!mmu_stall && !mmu_fault),
+        .advance(!mem_flush && !ex_hold),
+        .clear(mem_flush),
+        .mem_rdata(mem_rdata),
+        .amo_wr(atom_amo_wr),
+        .amo_wdata(atom_wdata),
+        .sc_ok(atom_sc_ok),
+        .busy(atom_busy),
+        .result(atom_result)
     );
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -386,7 +483,11 @@ module core_pipe #(
             ex_mem_valid          <= 0;
             ex_mem_sret           <= 0;
             ex_mem_instr          <= 0;
-        end else if (mem_trap || ex_busy) begin
+            ex_mem_sfence         <= 0;
+            ex_mem_pf             <= 0;
+            ex_mem_pa             <= 0;
+            ex_mem_ipf            <= 0;
+        end else if (mem_flush || ex_hold) begin
             ex_mem_valid     <= 0;
             ex_mem_reg_write <= 0;
             ex_mem_mem_write <= 0;
@@ -400,9 +501,16 @@ module core_pipe #(
             ex_mem_mret      <= 0;
             ex_mem_sret      <= 0;
             ex_mem_instr     <= 0;
+            ex_mem_sfence    <= 0;
+            ex_mem_pf        <= 0;
+            ex_mem_ipf       <= 0;
         end else begin
-            ex_mem_valid          <= id_ex_valid;  // valid instruction moving into MEM stage
-            ex_mem_alu_result     <= ex_alu_result;
+            ex_mem_valid <= id_ex_valid;  // valid instruction moving into MEM stage
+            if (mmu_fault)  // keep va for tval
+                ex_mem_alu_result <= ex_addr;
+            else if (id_ex_is_sc || id_ex_is_amo)  // sc 0/1, amo old
+                ex_mem_alu_result <= atom_result;
+            else ex_mem_alu_result <= ex_alu_result;
             ex_mem_multdiv_result <= div_result;
             ex_mem_rs2_data       <= ex_rs2;
             ex_mem_pc_plus4       <= id_ex_pc_plus4;
@@ -422,24 +530,65 @@ module core_pipe #(
             ex_mem_mret           <= id_ex_mret;
             ex_mem_sret           <= id_ex_sret;
             ex_mem_instr          <= id_ex_instr;
+            ex_mem_sfence         <= id_ex_sfence;
+            ex_mem_pf             <= mmu_fault;
+            ex_mem_pa             <= mmu_pa;
+            ex_mem_ipf            <= id_ex_ipf;
         end
     end
 
     //MEM
     wire mem_is_mul = (ex_mem_wb_sel == 2'b11) && !ex_mem_funct3[2];  // mul in MEM
     wire [31:0] mem_pc = ex_mem_pc_plus4 - 32'd4;  // pc of instr in MEM
-    wire mem_illegal = ex_mem_illegal || mem_csr_bad || mret_bad || sret_bad;  // illegal instruction in MEM
-    wire [31:0] mem_tval = mem_int ? 32'd0 : // interrupt: tval = 0
-                        mem_illegal ? ex_mem_instr :
-                        ex_mem_ebreak ? mem_pc : 32'd0;
-    assign mem_addr = ex_addr;  // ex mem alu result gets this
-    assign mem_wdata = ex_rs2;  // ex mem rs2 data gets this
-    assign mem_write = id_ex_mem_write && !mem_trap;  // no store on trap
-    assign mem_read = id_ex_mem_read;
-    assign mem_funct3 = id_ex_funct3;
-    assign wb_data = (mem_wb_wb_sel == 2'b00) ? mem_wb_alu_result :
-                 (mem_wb_wb_sel == 2'b01) ? mem_wb_mem_rdata :
-                 (mem_wb_wb_sel == 2'b10) ? mem_wb_pc_plus4 : mem_wb_multdiv_result;
+    trap_unit u_trap (
+        .priv(priv_o),
+        .valid(ex_mem_valid),
+        .mem_write(ex_mem_mem_write),
+        .illegal(ex_mem_illegal),
+        .ecall(ex_mem_ecall),
+        .ebreak(ex_mem_ebreak),
+        .mret(ex_mem_mret),
+        .sret(ex_mem_sret),
+        .is_csr(ex_mem_is_csr),
+        .csr_valid(csr_valid),
+        .int_pending(csr_int_pending),
+        .int_cause(csr_int_cause),
+        .instr(ex_mem_instr),
+        .pc(mem_pc),
+        .trap_vec(csr_trap_vec),
+        .mepc(csr_mepc),
+        .sepc(csr_sepc),
+        .pf(ex_mem_pf),
+        .pf_store(ex_mem_mem_write),
+        .va(ex_mem_alu_result),
+        .take_trap(take_trap),
+        .mem_trap(mem_trap),
+        .mret_ok(mret_ok),
+        .sret_ok(sret_ok),
+        .cause(mem_cause),
+        .tval(mem_tval),
+        .trap_target(trap_target),
+        .sfence(ex_mem_sfence),
+        .csr_we(ex_mem_csr_we),
+        .csr_addr(ex_mem_csr_addr),
+        .refetch(refetch),
+        .tlb_flush(tlb_flush),
+        .ipf(ex_mem_ipf)
+    );
+    assign mem_addr  = ptw_busy ? ptw_addr : mmu_pa;  // walker owns port
+    assign mem_wdata = id_ex_is_amo ? atom_wdata : ex_rs2;
+    wire store_en = id_ex_is_amo ? atom_amo_wr : id_ex_is_sc ? atom_sc_ok : id_ex_mem_write;
+    assign mem_write  = store_en && !mem_flush && !mmu_stall && !mmu_fault && !ptw_busy;  // no bad store
+    assign mem_read = ptw_busy || id_ex_mem_read || id_ex_is_amo;
+    assign mem_funct3 = ptw_busy ? 3'b010 : id_ex_funct3;  // walker reads words
+    wb_mux u_wb_mux (
+        .sel(mem_wb_wb_sel),
+        .alu_result(mem_wb_alu_result),
+        .mem_rdata(mem_wb_mem_rdata),
+        .pc_plus4(mem_wb_pc_plus4),
+        .multdiv_result(mem_wb_multdiv_result),
+        .wb_data(wb_data)
+    );
     wire [31:0] mem_csr_rdata;  // old csr value
 
     csr u_csr (
@@ -450,11 +599,11 @@ module core_pipe #(
         .dst(mem_csr_rdata),
         .we(ex_mem_csr_we),
         .op(ex_mem_funct3[1:0]),
-        .trap(mem_exc || mem_int),  // save mepc/mcause
+        .trap(take_trap),  // save epc/cause
         .trap_pc(mem_pc),
         .trap_cause(mem_cause),
-        .mret(ex_mem_mret && !mret_bad),
-        .sret(ex_mem_sret && !sret_bad),
+        .mret(mret_ok),
+        .sret(sret_ok),
         .trap_vec_o(csr_trap_vec),  // u_csr uses trap_vec_o, not mtvec_o
         .trap_val(mem_tval),
         .mepc_o(csr_mepc),
@@ -463,7 +612,10 @@ module core_pipe #(
         .timer_irq(timer_irq),
         .int_pending(csr_int_pending),
         .priv_o(priv_o),
-        .int_cause(csr_int_cause)
+        .int_cause(csr_int_cause),
+        .satp_o(csr_satp),
+        .sum_o(csr_sum),
+        .mxr_o(csr_mxr)
     );
     always @(posedge clk or posedge rst) begin
         if (rst) begin

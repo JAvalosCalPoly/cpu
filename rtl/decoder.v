@@ -18,7 +18,12 @@ module decoder (
     output wire        is_ebreak,
     output wire        is_mret,
     output wire        is_sret,
-    output reg         illegal
+    output reg         illegal,
+    output wire        is_sfence,
+    output wire        is_lr,
+    output wire        is_sc,
+    output wire        is_amo,
+    output wire [ 4:0] funct5
 );
 
     // opcodes (instr[6:0])
@@ -33,6 +38,7 @@ module decoder (
     localparam JALR = 7'b1100111;
     localparam MISC_MEM = 7'b0001111;
     localparam SYSTEM = 7'b1110011;
+    localparam AMO = 7'b0101111;
 
     // imm_sel
     localparam IMM_I = 3'b000, IMM_S = 3'b001, IMM_B = 3'b010, IMM_U = 3'b011, IMM_J = 3'b100;
@@ -52,18 +58,24 @@ module decoder (
     // extraction from instruction
     wire [6:0] opcode = instr[6:0];
     wire [2:0] funct3 = instr[14:12];
+    assign funct5 = instr[31:27];
     wire [6:0] funct7 = instr[31:25];
     wire       funct7_5 = instr[30];
     wire       is_wfi;
 
     // for csr
     assign is_csr = (opcode == SYSTEM) && (funct3[1:0] != 2'b00);
+    assign is_sfence = (opcode == SYSTEM) && (funct3 == 3'b000) && (funct7 == 7'b0001001) && (instr[11:7] == 5'd0);
     // for ecall, ebreak, mret
     assign is_ecall = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h000);
     assign is_ebreak = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h001);
     assign is_mret = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h302);
     assign is_sret = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h102);
     assign is_wfi = (opcode == SYSTEM) && (funct3 == 3'b000) && (instr[31:20] == 12'h105);
+    assign is_lr = (opcode == AMO) && (funct3 == 3'b010) && (funct5 == 5'b00010) && instr[24:20] == 5'd0;
+    assign is_sc = (opcode == AMO) && (funct3 == 3'b010) && (funct5 == 5'b00011);
+    assign is_amo = (opcode == AMO) && (funct3 == 3'b010) && ((funct5[1:0] == 2'b00) || (funct5 == 5'b00001));
+
     always @(*) begin
         reg_write = 1'b0;
         imm_sel = 3'b000;
@@ -167,11 +179,24 @@ module decoder (
             SYSTEM: begin
                 reg_write = is_csr;
                 imm_sel   = IMM_I;
-                if ((funct3 == 3'b100 || funct3 == 3'b000) && !is_ecall && !is_ebreak && !is_mret && !is_sret && !is_wfi) begin
+                if ((funct3 == 3'b100 || funct3 == 3'b000) && 
+                    !is_ecall && !is_ebreak && !is_mret && !is_sret && !is_wfi && !is_sfence) begin
                     illegal = 1'b1;  // bad funct3
                 end
             end
-            // default: unknown opcode
+            AMO: begin
+                if (is_lr) begin
+                    reg_write = 1'b1;
+                    mem_read = 1'b1;
+                    mem_write = 1'b0;
+                    wb_sel = WB_MEM;
+                end else if (is_sc || is_amo) begin
+                    reg_write = 1'b1;
+                    mem_read = 1'b0;
+                    mem_write = 1'b1;
+                    wb_sel = WB_ALU;
+                end else illegal = 1'b1;  // bad funct3/funct5
+            end
             default: begin
                 illegal = 1'b1;
             end

@@ -39,7 +39,7 @@ module top_pipe_echo_tb;
     // count interrupts that land on the rx load while it sits in MEM
     integer hits = 0, bad_pops = 0;
     always @(posedge clk)
-        if (dut.u_core.mem_int && dut.u_core.ex_mem_mem_read &&
+        if (dut.u_core.u_trap.irq && dut.u_core.ex_mem_mem_read &&
             dut.u_core.ex_mem_alu_result == 32'h1000_0004) begin
             hits = hits + 1;
             if (dut.rx_pop) bad_pops = bad_pops + 1;  // popped a load that gets replayed
