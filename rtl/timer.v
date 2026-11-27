@@ -5,7 +5,8 @@ module timer (
     input wire [31:0] wdata,
     input wire we,
     output reg [31:0] rdata,
-    output wire irq  // interrupt signal
+    output wire irq,  // interrupt signal
+    output wire [63:0] mtime_o
 );
 
     localparam MTIME_LO = 16'hBFF8, MTIME_HI = 16'hBFFC,
@@ -14,6 +15,7 @@ module timer (
 
     reg [63:0] mtime, mtimecmp;
     assign irq = (mtime >= mtimecmp);
+    assign mtime_o = mtime;
 
     always @(posedge clk or posedge rst) begin
         if (rst) mtime <= 0;

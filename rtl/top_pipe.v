@@ -33,6 +33,8 @@ module top_pipe #(
     wire [31:0] commit_addr;  // its address
     wire        rx_pop;  // uart rx pop
 
+    wire [63:0] mtime;  // timer -> csr time
+
     always @(posedge clk) begin
         is_timer_r <= is_timer;
         is_uart_r  <= is_uart;
@@ -57,6 +59,7 @@ module top_pipe #(
         .mem_read   (mem_read),
         .mem_funct3 (mem_funct3),
         .timer_irq  (timer_irq),
+        .mtime      (mtime),
         .load_commit(load_commit),
         .commit_addr(commit_addr)
     );
@@ -83,7 +86,8 @@ module top_pipe #(
         .wdata(mem_wdata),
         .we   (mem_write && is_timer),
         .rdata(timer_rdata),
-        .irq  (timer_irq)
+        .irq  (timer_irq),
+        .mtime_o(mtime)
     );
     uart #(
         .CLK_HZ(CLK_HZ),

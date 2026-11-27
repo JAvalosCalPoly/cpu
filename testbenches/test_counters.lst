@@ -1,0 +1,51 @@
+
+testbenches/test_counters.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: c0202573     	csrrs	x10, instret, x0
+       8: 00000013     	addi	x0, x0, 0x0
+       c: 00000013     	addi	x0, x0, 0x0
+      10: 00000013     	addi	x0, x0, 0x0
+      14: c02025f3     	csrrs	x11, instret, x0
+      18: 40a58633     	sub	x12, x11, x10
+      1c: 00cfa023     	sw	x12, 0x0(x31)
+      20: c0002573     	csrrs	x10, cycle, x0
+      24: c00025f3     	csrrs	x11, cycle, x0
+      28: 40a58633     	sub	x12, x11, x10
+      2c: 00cfa223     	sw	x12, 0x4(x31)
+      30: 06400293     	addi	x5, x0, 0x64
+      34: b0229073     	csrrw	x0, minstret, x5
+      38: c0202573     	csrrs	x10, instret, x0
+      3c: 00afa423     	sw	x10, 0x8(x31)
+      40: c0102573     	csrrs	x10, time, x0
+      44: 0200c337     	lui	x6, 0x200c
+      48: ff830313     	addi	x6, x6, -0x8
+      4c: 00032583     	lw	x11, 0x0(x6)
+      50: 40a58633     	sub	x12, x11, x10
+      54: 00cfa623     	sw	x12, 0xc(x31)
+      58: 00000317     	auipc	x6, 0x0
+      5c: 02430313     	addi	x6, x6, 0x24
+      60: 30531073     	csrrw	x0, mtvec, x6
+      64: 00000293     	addi	x5, x0, 0x0
+      68: c0029073     	csrrw	x0, cycle, x5
+      6c: d0e001b7     	lui	x3, 0xd0e00
+      70: 00d18193     	addi	x3, x3, 0xd
+      74: 0e3fa823     	sw	x3, 0xf0(x31)
+      78: 0000006f     	jal	x0, 0x78 <_start+0x78>
+
+0000007c <trap_handler>:
+      7c: 342024f3     	csrrs	x9, mcause, x0
+      80: 009fa823     	sw	x9, 0x10(x31)
+      84: 34102373     	csrrs	x6, mepc, x0
+      88: 00430313     	addi	x6, x6, 0x4
+      8c: 34131073     	csrrw	x0, mepc, x6
+      90: 30200073     	mret
+
+testbenches/test_counters.elf:	file format elf32-littleriscv
+00000000 T _start
+0000007c t trap_handler
+000000a0 B __bss_end
+000000a0 B __bss_start

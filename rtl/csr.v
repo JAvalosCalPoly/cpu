@@ -23,12 +23,34 @@ module csr (
     output wire [31:0] int_cause,    // which interrupt
     output wire [31:0] satp_o,
     output wire        sum_o,
-    output wire        mxr_o
+    output wire        mxr_o,
+    input  wire        retire,       // an instr finished this cycle
+    input  wire [63:0] mtime         // from the timer, for time/timeh
 );
 
     localparam MSTATUS = 12'h300, MTVEC = 12'h305, MSCRATCH = 12'h340, MEPC = 12'h341, MCAUSE = 12'h342,
-    MIE = 12'h304, MIP = 12'h344, MTVAL = 12'h343;
+    MIE = 12'h304, MIP = 12'h344, MTVAL = 12'h343, MCYCLE = 12'hB00, MINSTRET = 12'hB02, MCYCLEH = 12'hB80,
+    MINSTRETH = 12'hB82;
     localparam SATP = 12'h180;
+
+    // user counters (read-only)
+    localparam CYCLE = 12'hC00;
+    localparam TIME = 12'hC01;
+    localparam INSTRET = 12'hC02;
+    localparam CYCLEH = 12'hC80;
+    localparam TIMEH = 12'hC81;
+    localparam INSTRETH = 12'hC82;
+
+    // counter permissions
+    localparam MCOUNTEREN = 12'h306;
+    localparam SCOUNTEREN = 12'h106;
+
+    // info
+    localparam MISA = 12'h301;
+    localparam MVENDORID = 12'hF11;
+    localparam MARCHID = 12'hF12;
+    localparam MIMPID = 12'hF13;
+    localparam MHARTID = 12'hF14;
 
     localparam SSTATUS = 12'h100, STVEC = 12'h105, SSCRATCH = 12'h140, SEPC = 12'h141, SCAUSE = 12'h142,
     STVAL = 12'h143, MEDELEG = 12'h302, MIDELEG = 12'h303, SIE = 12'h104, SIP = 12'h144;
@@ -41,6 +63,13 @@ module csr (
     reg mstatus_sum, mstatus_mxr;
     reg [ 1:0] priv;
     reg [31:0] mtval;
+
+    reg [63:0] mcycle, minstret;  // cycle/instret read these too
+
+    // counteren registers
+    reg [2:0] mcounteren;
+    reg [2:0] scounteren;
+    wire is_ctr = (addr[11:8] == 4'hC) && (addr[6:2] == 5'b0) && (addr[1:0] != 2'b11);
 
     reg [31:0] satp;
 
@@ -57,9 +86,14 @@ module csr (
     wire ro_write = (addr[11:10] == 2'b11) && we;  // write to read-only
     wire csr_exists = (addr == MSTATUS) || (addr == MTVEC) || (addr == MSCRATCH) ||
                   (addr == MEPC) || (addr == MCAUSE) || (addr == MIE) || (addr == MIP) ||
+                  (addr == MCYCLE) || (addr == MCYCLEH) || (addr == MINSTRET) ||
+                  (addr == MINSTRETH) || (addr == CYCLE) || (addr == CYCLEH) ||
+                  (addr == INSTRET) || (addr == INSTRETH) || (addr == TIME) ||
+                  (addr == TIMEH) ||
                   (addr == SSTATUS) || (addr == STVEC) || (addr == SSCRATCH) || (addr == SEPC)
                   || (addr == SCAUSE) || (addr == STVAL) || (addr == MEDELEG) ||
-                  (addr == MIDELEG) || (addr == SIE) || (addr == SIP) || (addr == MTVAL) || (addr == SATP);
+                  (addr == MIDELEG) || (addr == SIE) || (addr == SIP) || (addr == MTVAL) || (addr == SATP) ||
+                  (addr == MCOUNTEREN) || (addr == SCOUNTEREN);
     wire to_s = trap_cause[31] ? (trap_cause[4:0] == 5'b00101) : (priv != 2'b11) && (medeleg[trap_cause[4:0]]);
     wire m_on = (priv != 2'b11) || mstatus_mie;
     wire s_on = (priv == 2'b00) || (priv == 2'b01 && mstatus_sie);
@@ -73,7 +107,11 @@ module csr (
     assign sepc_o = {sepc, 2'b00};
     assign int_pending = take_m || take_s;
     assign int_cause = take_m ? 32'h8000_0007 : take_s ? 32'h8000_0005 : 32'b0;
-    assign valid = csr_exists && csr_ok && !ro_write;
+
+    wire ctr_ok = (priv == 2'b00) ? (mcounteren[addr[1:0]] && scounteren[addr[1:0]]) :
+                    (priv == 2'b01) ? mcounteren[addr[1:0]] : 1'b1;
+
+    assign valid = csr_exists && csr_ok && !ro_write && (!is_ctr || ctr_ok);
     assign priv_o = priv;
     assign trap_vec_o = to_s ? {stvec[31:2], 2'b00} : {mtvec[31:2], 2'b00};
     assign satp_o = satp;
@@ -106,6 +144,12 @@ module csr (
             MCAUSE:   dst = mcause;
             MIE:      dst = {24'b0, mie_mtie, 1'b0, mie_stie, 5'b0};  // MTIE at bit 7, STIE 5
             MIP:      dst = {24'b0, timer_irq, 1'b0, mip_stip, 5'b0};  // MTIP at bit 7, STIP 5
+            MCYCLE, CYCLE:       dst = mcycle[31:0];
+            MCYCLEH, CYCLEH:     dst = mcycle[63:32];
+            MINSTRET, INSTRET:   dst = minstret[31:0];
+            MINSTRETH, INSTRETH: dst = minstret[63:32];
+            TIME:                dst = mtime[31:0];
+            TIMEH:               dst = mtime[63:32];
             SSTATUS:  dst = mstatus_val & 32'h000C_0122;
             STVEC:    dst = stvec;
             SSCRATCH: dst = sscratch;
@@ -118,8 +162,31 @@ module csr (
             SIE:      dst = {26'b0, mie_stie & mideleg_sti, 5'b0};  // SIE STI at bit 5
             SIP:      dst = {26'b0, mip_stip & mideleg_sti, 5'b0};  // SIP STI at bit 5
             SATP:     dst = satp;
+            MCOUNTEREN: dst = {29'b0, mcounteren};
+            SCOUNTEREN: dst = {29'b0, scounteren}; // mcounteren and scounteren 0exted
             default:  dst = 32'b0;
         endcase
+    end
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            mcycle <= 64'b0;
+            minstret <= 64'b0;
+        end else begin
+            if (we && !trap && (addr == MCYCLE))
+                mcycle[31:0] <= wdata;
+            else if (we && !trap && (addr == MCYCLEH))
+                mcycle[63:32] <= wdata;
+            else
+                mcycle <= mcycle + 64'd1;
+
+            if (we && !trap && (addr == MINSTRET))
+                minstret[31:0] <= wdata;
+            else if (we && !trap && (addr == MINSTRETH))
+                minstret[63:32] <= wdata;
+            else if (retire)
+                minstret <= minstret + 64'd1;
+        end
     end
 
     always @(posedge clk or posedge rst) begin
@@ -149,6 +216,8 @@ module csr (
             satp <= 32'b0;
             mstatus_sum <= 1'b0;
             mstatus_mxr <= 1'b0;
+            mcounteren <= 3'b0;
+            scounteren <= 3'b0;
         end else if (trap && to_s) begin
             sepc <= trap_pc[31:2];
             scause <= trap_cause;
@@ -206,6 +275,8 @@ module csr (
                 SIP: ;
                 MEDELEG: medeleg <= wdata & ~32'h0000_0800;  // ecall from M can't delegate
                 SATP: satp <= {wdata[31], 9'b0, wdata[21:0]};  // MODE, no ASID, PPN
+                MCOUNTEREN: mcounteren <= wdata[2:0]; // its only 3 bits
+                SCOUNTEREN: scounteren <= wdata[2:0];
                 default: ;
             endcase
         end

@@ -18,6 +18,7 @@ module core_pipe #(
     output wire [ 2:0] mem_funct3,
     // interrupts
     input  wire        timer_irq,    // from timer: mtime >= mtimecmp
+    input  wire [63:0] mtime,        // from timer
     output wire        load_commit,
     output wire [31:0] commit_addr
 );
@@ -600,6 +601,7 @@ module core_pipe #(
         .we(ex_mem_csr_we),
         .op(ex_mem_funct3[1:0]),
         .trap(take_trap),  // save epc/cause
+        .retire(ex_mem_valid && !take_trap),  // finishes next edge
         .trap_pc(mem_pc),
         .trap_cause(mem_cause),
         .mret(mret_ok),
@@ -610,6 +612,7 @@ module core_pipe #(
         .sepc_o(csr_sepc),
         .valid(csr_valid),
         .timer_irq(timer_irq),
+        .mtime(mtime),
         .int_pending(csr_int_pending),
         .priv_o(priv_o),
         .int_cause(csr_int_cause),

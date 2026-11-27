@@ -40,7 +40,9 @@ module csr_tb;
         .priv_o(priv_o),
         .satp_o(satp_o),
         .sum_o(sum_o),
-        .mxr_o(mxr_o)
+        .mxr_o(mxr_o),
+        .retire(1'b0),
+        .mtime(64'd0)
     );
 
     always #5 clk = ~clk;  // 10 ns clock
