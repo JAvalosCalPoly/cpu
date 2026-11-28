@@ -22,6 +22,9 @@ module divider_tb;
     wire [31:0] expected;
     integer cycle_count;
     integer errors = 0;
+    integer min_cyc = 1000;
+    integer max_cyc = 0;
+    integer runs = 0;
     integer i;
 
     multdiv test (
@@ -51,7 +54,9 @@ module divider_tb;
                 $display("FAIL: op=%b a=%h b=%h got %h expected %h", operation, dividend, divisor,
                          result, expected);
             end
-            $display("cycles: %0d", cycle_count);
+            runs = runs + 1;
+            if (cycle_count < min_cyc) min_cyc = cycle_count;
+            if (cycle_count > max_cyc) max_cyc = cycle_count;
         end
     endtask
 
@@ -87,6 +92,7 @@ module divider_tb;
         for (i = 0; i < 1000; i = i + 1) begin
             run($random, $random, $random & 3);
         end
+        $display("div cycles: min %0d, max %0d over %0d runs", min_cyc, max_cyc, runs);
         if (errors == 0) begin
             $display("All tests passed!");
         end else begin

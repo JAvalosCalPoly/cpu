@@ -1,0 +1,88 @@
+
+testbenches/test_counteren.elf:	file format elf32-littleriscv
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0: 40000f93     	addi	x31, x0, 0x400
+       4: 000fa823     	sw	x0, 0x10(x31)
+       8: 00000a13     	addi	x20, x0, 0x0
+       c: 00000297     	auipc	x5, 0x0
+      10: 08028293     	addi	x5, x5, 0x80
+      14: 30529073     	csrrw	x0, mtvec, x5
+      18: 30615073     	csrrwi	x0, mcounteren, 0x2
+      1c: 00100293     	addi	x5, x0, 0x1
+      20: 00b29293     	slli	x5, x5, 0xb
+      24: 30029073     	csrrw	x0, mstatus, x5
+      28: 00000297     	auipc	x5, 0x0
+      2c: 01028293     	addi	x5, x5, 0x10
+      30: 34129073     	csrrw	x0, mepc, x5
+      34: 30200073     	mret
+
+00000038 <s_code>:
+      38: 010f8913     	addi	x18, x31, 0x10
+      3c: 00000293     	addi	x5, x0, 0x0
+      40: c01022f3     	csrrs	x5, time, x0
+      44: 005fa023     	sw	x5, 0x0(x31)
+      48: 004f8913     	addi	x18, x31, 0x4
+      4c: c00022f3     	csrrs	x5, cycle, x0
+      50: 10605073     	csrrwi	x0, scounteren, 0x0
+      54: 10000293     	addi	x5, x0, 0x100
+      58: 1002b073     	csrrc	x0, sstatus, x5
+      5c: 00000297     	auipc	x5, 0x0
+      60: 01028293     	addi	x5, x5, 0x10
+      64: 14129073     	csrrw	x0, sepc, x5
+      68: 10200073     	sret
+
+0000006c <u_code_a>:
+      6c: 008f8913     	addi	x18, x31, 0x8
+      70: c01022f3     	csrrs	x5, time, x0
+      74: 00000073     	ecall
+
+00000078 <u_code_b>:
+      78: 010f8913     	addi	x18, x31, 0x10
+      7c: 00000293     	addi	x5, x0, 0x0
+      80: c01022f3     	csrrs	x5, time, x0
+      84: 005fa623     	sw	x5, 0xc(x31)
+      88: 00000073     	ecall
+
+0000008c <m_handler>:
+      8c: 342022f3     	csrrs	x5, mcause, x0
+      90: 00800313     	addi	x6, x0, 0x8
+      94: 00628c63     	beq	x5, x6, 0xac <from_u_ecall>
+      98: 00592023     	sw	x5, 0x0(x18)
+      9c: 34102373     	csrrs	x6, mepc, x0
+      a0: 00430313     	addi	x6, x6, 0x4
+      a4: 34131073     	csrrw	x0, mepc, x6
+      a8: 30200073     	mret
+
+000000ac <from_u_ecall>:
+      ac: 001a0a13     	addi	x20, x20, 0x1
+      b0: 00200313     	addi	x6, x0, 0x2
+      b4: 006a0e63     	beq	x20, x6, 0xd0 <finish>
+      b8: 00200293     	addi	x5, x0, 0x2
+      bc: 10629073     	csrrw	x0, scounteren, x5
+      c0: 00000297     	auipc	x5, 0x0
+      c4: fb828293     	addi	x5, x5, -0x48
+      c8: 34129073     	csrrw	x0, mepc, x5
+      cc: 30200073     	mret
+
+000000d0 <finish>:
+      d0: d0e002b7     	lui	x5, 0xd0e00
+      d4: 00d28293     	addi	x5, x5, 0xd
+      d8: 0e5fa823     	sw	x5, 0xf0(x31)
+
+000000dc <done>:
+      dc: 0000006f     	jal	x0, 0xdc <done>
+
+testbenches/test_counteren.elf:	file format elf32-littleriscv
+00000000 T _start
+00000038 t s_code
+0000006c t u_code_a
+00000078 t u_code_b
+0000008c t m_handler
+000000ac t from_u_ecall
+000000d0 t finish
+000000dc t done
+000000e0 B __bss_end
+000000e0 B __bss_start

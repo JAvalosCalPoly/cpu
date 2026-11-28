@@ -40,3 +40,4 @@
 scripts/run_tests.fish
 scripts/link.ld
 .vscode
+.asm-lsp.toml
